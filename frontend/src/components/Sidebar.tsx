@@ -41,7 +41,7 @@ export default function Sidebar({ page, setPage, open, setOpen }: Props) {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7c6fcd] to-[#4ecdc4] flex items-center justify-center shadow-md">
               <span className="text-white font-display font-900 text-lg">F</span>
             </div>
-            <span className="font-display font-800 text-xl text-[#1e1b4b]">Finly</span>
+            <span className="font-display font-800 text-xl text-[#1e1b4b]">Personal Finance</span>
             <span className="ml-auto text-xs bg-[#ede9fb] text-[#7c6fcd] font-600 px-2 py-0.5 rounded-full">Pro</span>
           </div>
         </div>

@@ -92,7 +92,7 @@ export default function Profile({ toast }: Props) {
       </div>
 
       <div className="text-center text-xs text-[#6b7280] pb-2">
-        Finly v1.0.0 · Được làm với 💜 cho sinh viên Việt Nam
+        Personal Finance v1.0.0 · Được làm với 💜 cho sinh viên Việt Nam
       </div>
     </div>
   );

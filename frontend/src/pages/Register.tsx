@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Page } from "../App";
+import { api } from "../lib/api";
 
 interface Props {
   goTo: (p: Page) => void;
@@ -23,17 +24,22 @@ export default function Register({ goTo, toast }: Props) {
   const strengthLabels = ["", "Yếu", "Trung bình", "Mạnh"];
   const strengthColors = ["", "bg-[#f87171]", "bg-[#fbbf24]", "bg-[#10b981]"];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.password) { toast("Vui lòng nhập đầy đủ thông tin!", "error"); return; }
     if (form.password !== form.confirm) { toast("Mật khẩu không khớp!", "error"); return; }
     if (form.password.length < 6) { toast("Mật khẩu phải ít nhất 6 ký tự!", "error"); return; }
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await api.register(form.name, form.email, form.password);
       setLoading(false);
       toast("Đăng ký thành công! Chào mừng bạn 🎉");
-      goTo("dashboard");
-    }, 1000);
+      goTo("login");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Đăng ký thất bại!", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,7 +49,7 @@ export default function Register({ goTo, toast }: Props) {
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7c6fcd] to-[#4ecdc4] flex items-center justify-center shadow-md">
             <span className="text-white font-display font-900">F</span>
           </div>
-          <span className="font-display font-800 text-xl text-[#1e1b4b]">Finly</span>
+          <span className="font-display font-800 text-xl text-[#1e1b4b]">Personal Finance</span>
         </div>
 
         <h1 className="font-display font-800 text-2xl text-[#1e1b4b] mb-1">Tạo tài khoản mới ✨</h1>

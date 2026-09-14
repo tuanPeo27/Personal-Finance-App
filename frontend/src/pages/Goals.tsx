@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { goals as initGoals, fmtVND } from "../data/mockData";
+import { useEffect, useState } from "react";
+import { api, type Goal, fmtVND } from "../lib/api";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 
@@ -15,37 +15,33 @@ const statusConfig: Record<Status, { label: string; color: string; bg: string }>
 const goalIcons = ["💻","📱","🛡","✈️","🚲","🏠","🚗","📚","💍","🎓","🏊","🎸","🏋️","🌍","🎉"];
 
 export default function Goals({ toast }: Props) {
-  const [list, setList] = useState(initGoals);
+  const [list, setList] = useState<Goal[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem] = useState<typeof initGoals[0] | null>(null);
+  const [editItem, setEditItem] = useState<Goal | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | Status>("all");
   const [form, setForm] = useState({ name: "", icon: "💻", target: "", current: "", deadline: "" });
 
+  useEffect(() => { api.goals().then(setList).catch(error => toast(error.message, "error")); }, []);
+
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const openAdd = () => { setEditItem(null); setForm({ name: "", icon: "💻", target: "", current: "", deadline: "" }); setShowModal(true); };
-  const openEdit = (g: typeof initGoals[0]) => { setEditItem(g); setForm({ name: g.name, icon: g.icon, target: String(g.target), current: String(g.current), deadline: g.deadline }); setShowModal(true); };
+  const openEdit = (g: Goal) => { setEditItem(g); setForm({ name: g.name, icon: g.icon, target: String(g.target), current: String(g.current), deadline: g.deadline }); setShowModal(true); };
 
-  const save = () => {
+  const save = async () => {
     if (!form.name || !form.target || !form.deadline) { toast("Vui lòng nhập đầy đủ!", "error"); return; }
-    const newGoal = {
-      id: editItem?.id ?? Date.now(),
-      name: form.name,
-      icon: form.icon,
-      target: Number(form.target),
-      current: Number(form.current) || 0,
-      deadline: form.deadline,
-      status: (Number(form.current) >= Number(form.target) ? "completed" : "active") as Status,
-    };
-    if (editItem) {
-      setList(l => l.map(g => g.id === editItem.id ? newGoal : g));
-      toast("Cập nhật mục tiêu thành công!");
-    } else {
-      setList(l => [...l, newGoal]);
-      toast("Đã tạo mục tiêu mới! 🎯");
-    }
-    setShowModal(false);
+    try {
+      if (editItem) {
+        await api.updateGoal(editItem.id, form.name, Number(form.target), form.deadline);
+        await api.updateGoalProgress(editItem.id, Number(form.current) || 0);
+      } else {
+        const goal = await api.createGoal(form.name, Number(form.target), form.deadline);
+        if (Number(form.current) > 0) await api.updateGoalProgress(goal.id, Number(form.current));
+      }
+      setList(await api.goals());
+      toast(editItem ? "Cập nhật mục tiêu thành công!" : "Đã tạo mục tiêu mới! 🎯"); setShowModal(false);
+    } catch (error) { toast(error instanceof Error ? error.message : "Không thể lưu mục tiêu!", "error"); }
   };
 
   const shown = list.filter(g => filterStatus === "all" || g.status === filterStatus);
@@ -70,7 +66,7 @@ export default function Goals({ toast }: Props) {
         <div className="flex bg-[#faf8ff] border border-[#e8e4f5] rounded-xl p-1 gap-1 flex-wrap">
           {(["all", "active", "completed", "cancelled"] as const).map(s => (
             <button key={s} onClick={() => setFilterStatus(s)} className={`px-3 py-1.5 rounded-lg text-xs font-700 transition-all ${filterStatus === s ? "bg-white shadow-sm text-[#1e1b4b]" : "text-[#6b7280]"}`}>
-              {s === "all" ? "Tất cả" : statusConfig[s].label}
+              {s === "all" ? "Tất cả" : statusConfig[s === "active" ? "active" : s === "completed" ? "completed" : "cancelled"].label}
             </button>
           ))}
         </div>
@@ -181,7 +177,7 @@ export default function Goals({ toast }: Props) {
       )}
 
       {deleteId !== null && (
-        <ConfirmDialog message="Bạn có chắc muốn xoá mục tiêu này không?" onConfirm={() => { setList(l => l.filter(g => g.id !== deleteId)); setDeleteId(null); toast("Đã xoá mục tiêu!", "warning"); }} onCancel={() => setDeleteId(null)} />
+        <ConfirmDialog message="Bạn có chắc muốn xoá mục tiêu này không?" onConfirm={async () => { try { await api.deleteGoal(deleteId); setList(await api.goals()); setDeleteId(null); toast("Đã xoá mục tiêu!", "warning"); } catch (error) { toast(error instanceof Error ? error.message : "Không thể xoá mục tiêu!", "error"); } }} onCancel={() => setDeleteId(null)} />
       )}
     </div>
   );
