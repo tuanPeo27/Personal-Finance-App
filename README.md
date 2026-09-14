@@ -1108,7 +1108,12 @@ https://localhost:<PORT>/health
 
 ### Personal Finance Management System
 
-**Đồ án môn Công nghệ .NET**
+```text
+Huỳnh Lê Anh Tuấn
+Nguyễn Võ Anh Kỳ
+Nguyễn Thanh Văn
+```
+**Đồ án môn Các Công Nghệ Lập Trình Hiện Đại**
 
 <br>
 
