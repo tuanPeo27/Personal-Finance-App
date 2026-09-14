@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { budgets as initBudgets, categories, fmtVND } from "../data/mockData";
+import { useEffect, useState } from "react";
+import { api, type Budget, type Category, fmtVND } from "../lib/api";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 
@@ -8,29 +8,36 @@ interface Props { toast: (msg: string, t?: "success" | "error" | "warning") => v
 const months = ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6","Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"];
 
 export default function Budgets({ toast }: Props) {
-  const [list, setList] = useState(initBudgets);
+  const [list, setList] = useState<Budget[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem] = useState<typeof initBudgets[0] | null>(null);
+  const [editItem, setEditItem] = useState<Budget | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [form, setForm] = useState({ category: "Ăn uống", icon: "🍜", amount: "", month: 9, year: 2026 });
+  const [form, setForm] = useState({ categoryId: "", category: "", icon: "🍜", amount: "", month: new Date().getMonth() + 1, year: new Date().getFullYear() });
 
-  const expenseCats = categories.filter(c => c.type === "expense");
+  useEffect(() => {
+    Promise.all([api.budgets(), api.categories()]).then(async ([budgets, loadedCategories]) => {
+      const withSpent = await Promise.all(budgets.map(async budget => ({ ...budget, spent: (await api.budgetSpent(budget.id)).spent })));
+      setList(withSpent); setCategories(loadedCategories);
+    }).catch(error => toast(error.message, "error"));
+  }, []);
 
-  const openAdd = () => { setEditItem(null); setForm({ category: "Ăn uống", icon: "🍜", amount: "", month: 9, year: 2026 }); setShowModal(true); };
-  const openEdit = (b: typeof initBudgets[0]) => { setEditItem(b); setForm({ category: b.category, icon: b.icon, amount: String(b.amount), month: b.month, year: b.year }); setShowModal(true); };
+  const expenseCats = categories.filter(c => c.type === "Expense");
 
-  const save = () => {
+  const openAdd = () => { const category = expenseCats[0]; setEditItem(null); setForm({ categoryId: String(category?.id ?? ""), category: category?.name ?? "", icon: category?.icon ?? "💰", amount: "", month: new Date().getMonth() + 1, year: new Date().getFullYear() }); setShowModal(true); };
+  const openEdit = (b: Budget) => { setEditItem(b); setForm({ categoryId: String(b.categoryId), category: b.category, icon: b.icon, amount: String(b.amount), month: b.month, year: b.year }); setShowModal(true); };
+
+  const save = async () => {
     if (!form.amount) { toast("Vui lòng nhập số tiền!", "error"); return; }
-    const dup = list.find(b => b.category === form.category && b.month === form.month && b.year === form.year && b.id !== editItem?.id);
+    const dup = list.find(b => b.categoryId === Number(form.categoryId) && b.month === form.month && b.year === form.year && b.id !== editItem?.id);
     if (dup) { toast("Đã có ngân sách cho danh mục này tháng này!", "error"); return; }
-    if (editItem) {
-      setList(l => l.map(b => b.id === editItem.id ? { ...b, category: form.category, icon: form.icon, amount: Number(form.amount), month: form.month, year: form.year } : b));
-      toast("Cập nhật ngân sách thành công!");
-    } else {
-      setList(l => [...l, { id: Date.now(), category: form.category, icon: form.icon, amount: Number(form.amount), spent: 0, month: form.month, year: form.year }]);
-      toast("Đã tạo ngân sách mới! 📊");
-    }
-    setShowModal(false);
+    try {
+      if (editItem) await api.updateBudget(editItem.id, Number(form.amount));
+      else await api.createBudget({ categoryId: Number(form.categoryId), amount: Number(form.amount), month: form.month, year: form.year });
+      setList(await api.budgets());
+      toast(editItem ? "Cập nhật ngân sách thành công!" : "Đã tạo ngân sách mới! 📊");
+      setShowModal(false);
+    } catch (error) { toast(error instanceof Error ? error.message : "Không thể lưu ngân sách!", "error"); }
   };
 
   const totalBudget = list.reduce((s, b) => s + b.amount, 0);
@@ -125,8 +132,8 @@ export default function Budgets({ toast }: Props) {
           <div className="space-y-4">
             <div>
               <label className="text-xs font-700 text-[#6b7280] uppercase tracking-wide mb-1.5 block">Danh mục</label>
-              <select value={form.category} onChange={e => { const cat = expenseCats.find(c => c.name === e.target.value); setForm(f => ({ ...f, category: e.target.value, icon: cat?.icon ?? "💰" })); }} className="w-full px-4 py-3 rounded-xl border border-[#e8e4f5] bg-[#faf8ff] text-sm focus:outline-none focus:ring-2 focus:ring-[#7c6fcd]/40 transition-all">
-                {expenseCats.map(c => <option key={c.id}>{c.name}</option>)}
+              <select value={form.categoryId} onChange={e => { const cat = expenseCats.find(c => c.id === Number(e.target.value)); setForm(f => ({ ...f, categoryId: e.target.value, category: cat?.name ?? "", icon: cat?.icon ?? "💰" })); }} className="w-full px-4 py-3 rounded-xl border border-[#e8e4f5] bg-[#faf8ff] text-sm focus:outline-none focus:ring-2 focus:ring-[#7c6fcd]/40 transition-all">
+                {expenseCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
@@ -154,7 +161,7 @@ export default function Budgets({ toast }: Props) {
       )}
 
       {deleteId !== null && (
-        <ConfirmDialog message="Bạn có chắc muốn xoá ngân sách này không?" onConfirm={() => { setList(l => l.filter(b => b.id !== deleteId)); setDeleteId(null); toast("Đã xoá ngân sách!", "warning"); }} onCancel={() => setDeleteId(null)} />
+        <ConfirmDialog message="Bạn có chắc muốn xoá ngân sách này không?" onConfirm={async () => { try { await api.deleteBudget(deleteId); setList(await api.budgets()); setDeleteId(null); toast("Đã xoá ngân sách!", "warning"); } catch (error) { toast(error instanceof Error ? error.message : "Không thể xoá ngân sách!", "error"); } }} onCancel={() => setDeleteId(null)} />
       )}
     </div>
   );

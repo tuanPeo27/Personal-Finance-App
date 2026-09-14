@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Page } from "../App";
+import { api } from "../lib/api";
 
 interface Props {
   goTo: (p: Page) => void;
@@ -12,15 +13,21 @@ export default function Login({ goTo, toast }: Props) {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) { toast("Vui lòng nhập đầy đủ thông tin!", "error"); return; }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      toast("Chào mừng trở lại, Nguyễn Tuấn! 👋");
+    try {
+      const result = await api.login(email, password);
+      localStorage.setItem("finance_token", result.token);
+      localStorage.setItem("finance_user", JSON.stringify(result.user));
+      toast(`Chào mừng trở lại, ${result.user.fullName}! 👋`);
       goTo("dashboard");
-    }, 1000);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Đăng nhập thất bại!", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -51,7 +58,7 @@ export default function Login({ goTo, toast }: Props) {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7c6fcd] to-[#4ecdc4] flex items-center justify-center shadow-md">
               <span className="text-white font-display font-900 text-xl">F</span>
             </div>
-            <span className="font-display font-800 text-2xl text-[#1e1b4b]">Finly</span>
+            <span className="font-display font-800 text-2xl text-[#1e1b4b]">Personal Finance</span>
           </div>
 
           <h1 className="font-display font-800 text-2xl text-[#1e1b4b] mb-1">Chào mừng trở lại! 👋</h1>

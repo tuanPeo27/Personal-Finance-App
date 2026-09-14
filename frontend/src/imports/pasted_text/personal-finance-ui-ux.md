@@ -106,7 +106,7 @@ Main layout:
 
 SIDEBAR:
 Logo:
-"Finly" or "MoneyMate"
+"Personal Finance" or "MoneyMate"
 
 Navigation:
 

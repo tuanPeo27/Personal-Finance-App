@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { accounts as initAccounts, fmtVND } from "../data/mockData";
+import { useEffect, useState } from "react";
+import { api, type Account, fmtVND } from "../lib/api";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 
@@ -10,31 +10,34 @@ const iconMap: Record<string, string> = { "Tiền mặt": "💵", "Ngân hàng":
 const colorMap: Record<string, string> = { "Tiền mặt": "#fbbf24", "Ngân hàng": "#7c6fcd", "Ví điện tử": "#ff9a8b" };
 
 export default function Accounts({ toast }: Props) {
-  const [list, setList] = useState(initAccounts);
+  const [list, setList] = useState<Account[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem] = useState<typeof initAccounts[0] | null>(null);
+  const [editItem, setEditItem] = useState<Account | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [form, setForm] = useState({ name: "", type: "Tiền mặt", balance: "" });
 
-  const openAdd = () => { setEditItem(null); setForm({ name: "", type: "Tiền mặt", balance: "" }); setShowModal(true); };
-  const openEdit = (a: typeof initAccounts[0]) => { setEditItem(a); setForm({ name: a.name, type: a.type, balance: String(a.balance) }); setShowModal(true); };
+  useEffect(() => { api.accounts().then(setList).catch(error => toast(error.message, "error")); }, []);
 
-  const save = () => {
+  const openAdd = () => { setEditItem(null); setForm({ name: "", type: "Tiền mặt", balance: "" }); setShowModal(true); };
+  const openEdit = (a: Account) => { setEditItem(a); setForm({ name: a.name, type: a.type, balance: String(a.balance) }); setShowModal(true); };
+
+  const save = async () => {
     if (!form.name || !form.balance) { toast("Vui lòng nhập đầy đủ!", "error"); return; }
-    if (editItem) {
-      setList(l => l.map(a => a.id === editItem.id ? { ...a, name: form.name, type: form.type, balance: Number(form.balance), icon: iconMap[form.type], color: colorMap[form.type] } : a));
-      toast("Cập nhật tài khoản thành công!");
-    } else {
-      setList(l => [...l, { id: Date.now(), name: form.name, type: form.type, balance: Number(form.balance), transactions: 0, icon: iconMap[form.type], color: colorMap[form.type] }]);
-      toast("Thêm tài khoản thành công! 🎉");
-    }
-    setShowModal(false);
+    try {
+      if (editItem) await api.updateAccount(editItem.id, form.name, form.type);
+      else await api.createAccount(form.name, form.type, Number(form.balance));
+      setList(await api.accounts());
+      toast(editItem ? "Cập nhật tài khoản thành công!" : "Thêm tài khoản thành công! 🎉");
+      setShowModal(false);
+    } catch (error) { toast(error instanceof Error ? error.message : "Không thể lưu tài khoản!", "error"); }
   };
 
-  const confirmDelete = () => {
-    setList(l => l.filter(a => a.id !== deleteId));
+  const confirmDelete = async () => {
+    if (deleteId === null) return;
+    try { await api.deleteAccount(deleteId); setList(await api.accounts());
     setDeleteId(null);
     toast("Đã xoá tài khoản!", "warning");
+    } catch (error) { toast(error instanceof Error ? error.message : "Không thể xoá tài khoản!", "error"); }
   };
 
   const total = list.reduce((s, a) => s + a.balance, 0);

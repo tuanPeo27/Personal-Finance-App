@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { categories as initCats } from "../data/mockData";
+import { useEffect, useState } from "react";
+import { api, type Category } from "../lib/api";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 
@@ -8,26 +8,28 @@ interface Props { toast: (msg: string, t?: "success" | "error" | "warning") => v
 const icons = ["🍜","🚗","🛍","🎮","📄","📚","🔖","💼","🎁","💻","📈","💰","🏠","💊","🐶","✈️","🎵","⚽","☕","🎂"];
 
 export default function Categories({ toast }: Props) {
-  const [list, setList] = useState(initCats);
-  const [tab, setTab] = useState<"income" | "expense">("expense");
+  const [list, setList] = useState<Category[]>([]);
+  const [tab, setTab] = useState<"Income" | "Expense">("Expense");
   const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem] = useState<typeof initCats[0] | null>(null);
+  const [editItem, setEditItem] = useState<Category | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [form, setForm] = useState({ name: "", type: "expense" as "income" | "expense", icon: "💰" });
 
-  const openAdd = () => { setEditItem(null); setForm({ name: "", type: tab, icon: "💰" }); setShowModal(true); };
-  const openEdit = (c: typeof initCats[0]) => { setEditItem(c); setForm({ name: c.name, type: c.type, icon: c.icon }); setShowModal(true); };
+  useEffect(() => { api.categories().then(setList).catch(error => toast(error.message, "error")); }, []);
 
-  const save = () => {
+  const openAdd = () => { setEditItem(null); setForm({ name: "", type: tab === "Income" ? "income" : "expense", icon: "💰" }); setShowModal(true); };
+  const openEdit = (c: Category) => { setEditItem(c); setForm({ name: c.name, type: c.type === "Income" ? "income" : "expense", icon: c.icon }); setShowModal(true); };
+
+  const save = async () => {
     if (!form.name) { toast("Vui lòng nhập tên danh mục!", "error"); return; }
-    if (editItem) {
-      setList(l => l.map(c => c.id === editItem.id ? { ...c, ...form } : c));
-      toast("Cập nhật danh mục thành công!");
-    } else {
-      setList(l => [...l, { id: Date.now(), ...form, transactions: 0 }]);
-      toast("Thêm danh mục thành công! 🏷");
-    }
-    setShowModal(false);
+    try {
+      const type = form.type === "income" ? "Income" : "Expense";
+      if (editItem) await api.updateCategory(editItem.id, form.name, type, form.icon);
+      else await api.createCategory(form.name, type, form.icon);
+      setList(await api.categories());
+      toast(editItem ? "Cập nhật danh mục thành công!" : "Thêm danh mục thành công! 🏷");
+      setShowModal(false);
+    } catch (error) { toast(error instanceof Error ? error.message : "Không thể lưu danh mục!", "error"); }
   };
 
   const shown = list.filter(c => c.type === tab);
@@ -36,13 +38,13 @@ export default function Categories({ toast }: Props) {
     <div className="space-y-5 pb-20 lg:pb-6">
       <div className="flex items-center justify-between">
         <div className="flex bg-[#faf8ff] border border-[#e8e4f5] rounded-xl p-1 gap-1">
-          {(["expense", "income"] as const).map(t => (
+          {(["Expense", "Income"] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-lg text-sm font-700 transition-all ${tab === t ? "bg-white shadow-sm text-[#1e1b4b]" : "text-[#6b7280] hover:text-[#1e1b4b]"}`}
             >
-              {t === "expense" ? "🔴 Chi tiêu" : "💚 Thu nhập"}
+              {t === "Expense" ? "🔴 Chi tiêu" : "💚 Thu nhập"}
             </button>
           ))}
         </div>
@@ -61,7 +63,7 @@ export default function Categories({ toast }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {shown.map(c => (
             <div key={c.id} className="bg-white rounded-2xl p-4 shadow-sm border border-[#e8e4f5] hover:shadow-md transition-all flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${tab === "expense" ? "bg-[#fee2e2]" : "bg-[#d1fae5]"}`}>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${tab === "Expense" ? "bg-[#fee2e2]" : "bg-[#d1fae5]"}`}>
                 {c.icon}
               </div>
               <div className="flex-1 min-w-0">
@@ -113,7 +115,7 @@ export default function Categories({ toast }: Props) {
       )}
 
       {deleteId !== null && (
-        <ConfirmDialog message="Xoá danh mục này sẽ không ảnh hưởng tới giao dịch cũ." onConfirm={() => { setList(l => l.filter(c => c.id !== deleteId)); setDeleteId(null); toast("Đã xoá danh mục!", "warning"); }} onCancel={() => setDeleteId(null)} />
+        <ConfirmDialog message="Xoá danh mục này sẽ không ảnh hưởng tới giao dịch cũ." onConfirm={async () => { try { await api.deleteCategory(deleteId); setList(await api.categories()); setDeleteId(null); toast("Đã xoá danh mục!", "warning"); } catch (error) { toast(error instanceof Error ? error.message : "Không thể xoá danh mục!", "error"); } }} onCancel={() => setDeleteId(null)} />
       )}
     </div>
   );

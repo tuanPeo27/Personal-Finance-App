@@ -1,52 +1,48 @@
-import { useState } from "react";
-import { transactions as initTx, accounts, categories, fmtVND } from "../data/mockData";
+import { useEffect, useState } from "react";
+import { api, type Account, type Category, type Transaction, fmtVND } from "../lib/api";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 interface Props { toast: (msg: string, t?: "success" | "error" | "warning") => void; }
 
-const emptyForm = { type: "expense" as "income" | "expense", amount: "", account: "MB Bank", category: "Ăn uống", description: "", date: new Date().toISOString().split("T")[0] };
+const emptyForm = { type: "Expense" as "Income" | "Expense", amount: "", accountId: "", categoryId: "", description: "", date: new Date().toISOString().split("T")[0] };
 
 export default function Transactions({ toast }: Props) {
-  const [list, setList] = useState(initTx);
+  const [list, setList] = useState<Transaction[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem] = useState<typeof initTx[0] | null>(null);
+  const [editItem, setEditItem] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
 
+  useEffect(() => {
+    Promise.all([api.transactions(), api.accounts(), api.categories()])
+      .then(([transactions, loadedAccounts, loadedCategories]) => { setList(transactions); setAccounts(loadedAccounts); setCategories(loadedCategories); })
+      .catch(error => toast(error.message, "error"));
+  }, []);
+
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const openAdd = () => { setEditItem(null); setForm(emptyForm); setShowModal(true); };
+  const openAdd = () => { setEditItem(null); setForm({ ...emptyForm, accountId: String(accounts[0]?.id ?? ""), categoryId: String(categories.find(c => c.type === "Expense")?.id ?? "") }); setShowModal(true); };
 
-  const save = () => {
+  const save = async () => {
     if (!form.amount || !form.description) { toast("Vui lòng nhập đầy đủ thông tin!", "error"); return; }
-    const cat = categories.find(c => c.name === form.category);
-    const newTx = {
-      id: editItem?.id ?? Date.now(),
-      date: form.date,
-      description: form.description,
-      category: form.category,
-      categoryIcon: cat?.icon ?? "💰",
-      account: form.account,
-      type: form.type,
-      amount: Number(form.amount),
-    };
-    if (editItem) {
-      setList(l => l.map(t => t.id === editItem.id ? newTx : t));
-      toast("Cập nhật giao dịch thành công!");
-    } else {
-      setList(l => [newTx, ...l]);
-      toast("Thêm giao dịch thành công! ✨");
-    }
-    setShowModal(false);
+    try {
+      const params = { accountId: Number(form.accountId), categoryId: Number(form.categoryId), amount: Number(form.amount), type: form.type, description: form.description, transactionDate: form.date };
+      if (editItem) await api.updateTransaction(editItem.id, params); else await api.createTransaction(params);
+      setList(await api.transactions());
+      toast(editItem ? "Cập nhật giao dịch thành công!" : "Thêm giao dịch thành công! ✨");
+      setShowModal(false);
+    } catch (error) { toast(error instanceof Error ? error.message : "Không thể lưu giao dịch!", "error"); }
   };
 
   const filtered = list.filter(t => {
     const matchSearch = t.description.toLowerCase().includes(search.toLowerCase()) || t.category.toLowerCase().includes(search.toLowerCase());
-    const matchType = filterType === "all" || t.type === filterType;
+    const matchType = filterType === "all" || t.type.toLowerCase() === filterType;
     return matchSearch && matchType;
   });
 
@@ -105,12 +101,12 @@ export default function Transactions({ toast }: Props) {
                     </td>
                     <td className="px-4 py-3.5 text-xs text-[#6b7280]">{t.account}</td>
                     <td className="px-4 py-3.5">
-                      <span className={`text-xs font-700 px-2.5 py-1 rounded-full ${t.type === "income" ? "bg-[#d1fae5] text-[#065f46]" : "bg-[#fee2e2] text-[#991b1b]"}`}>
-                        {t.type === "income" ? "Thu" : "Chi"}
+                      <span className={`text-xs font-700 px-2.5 py-1 rounded-full ${t.type === "Income" ? "bg-[#d1fae5] text-[#065f46]" : "bg-[#fee2e2] text-[#991b1b]"}`}>
+                        {t.type === "Income" ? "Thu" : "Chi"}
                       </span>
                     </td>
-                    <td className={`px-4 py-3.5 font-800 whitespace-nowrap ${t.type === "income" ? "text-[#10b981]" : "text-[#f87171]"}`}>
-                      {t.type === "income" ? "+" : "-"}{fmtVND(t.amount)}
+                    <td className={`px-4 py-3.5 font-800 whitespace-nowrap ${t.type === "Income" ? "text-[#10b981]" : "text-[#f87171]"}`}>
+                      {t.type === "Income" ? "+" : "-"}{fmtVND(t.amount)}
                     </td>
                     <td className="px-4 py-3.5">
                       <button
@@ -132,13 +128,13 @@ export default function Transactions({ toast }: Props) {
             <div>
               <label className="text-xs font-700 text-[#6b7280] uppercase tracking-wide mb-1.5 block">Loại giao dịch</label>
               <div className="grid grid-cols-2 gap-2">
-                {(["expense", "income"] as const).map(t => (
+                {(["Expense", "Income"] as const).map(t => (
                   <button
                     key={t}
                     onClick={() => setForm(f => ({ ...f, type: t }))}
-                    className={`py-2.5 rounded-xl text-sm font-700 border-2 transition-all ${form.type === t ? (t === "income" ? "border-[#10b981] bg-[#d1fae5] text-[#065f46]" : "border-[#f87171] bg-[#fee2e2] text-[#991b1b]") : "border-[#e8e4f5] text-[#6b7280] hover:border-[#7c6fcd]"}`}
+                    className={`py-2.5 rounded-xl text-sm font-700 border-2 transition-all ${form.type === t ? (t === "Income" ? "border-[#10b981] bg-[#d1fae5] text-[#065f46]" : "border-[#f87171] bg-[#fee2e2] text-[#991b1b]") : "border-[#e8e4f5] text-[#6b7280] hover:border-[#7c6fcd]"}`}
                   >
-                    {t === "income" ? "💚 Thu nhập" : "🔴 Chi tiêu"}
+                    {t === "Income" ? "💚 Thu nhập" : "🔴 Chi tiêu"}
                   </button>
                 ))}
               </div>
@@ -156,14 +152,14 @@ export default function Transactions({ toast }: Props) {
             ))}
             <div>
               <label className="text-xs font-700 text-[#6b7280] uppercase tracking-wide mb-1.5 block">Tài khoản</label>
-              <select value={form.account} onChange={set("account")} className="w-full px-4 py-3 rounded-xl border border-[#e8e4f5] bg-[#faf8ff] text-sm focus:outline-none focus:ring-2 focus:ring-[#7c6fcd]/40 focus:border-[#7c6fcd] transition-all">
-                {accounts.map(a => <option key={a.id}>{a.name}</option>)}
+              <select value={form.accountId} onChange={set("accountId")} className="w-full px-4 py-3 rounded-xl border border-[#e8e4f5] bg-[#faf8ff] text-sm focus:outline-none focus:ring-2 focus:ring-[#7c6fcd]/40 focus:border-[#7c6fcd] transition-all">
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs font-700 text-[#6b7280] uppercase tracking-wide mb-1.5 block">Danh mục</label>
-              <select value={form.category} onChange={set("category")} className="w-full px-4 py-3 rounded-xl border border-[#e8e4f5] bg-[#faf8ff] text-sm focus:outline-none focus:ring-2 focus:ring-[#7c6fcd]/40 focus:border-[#7c6fcd] transition-all">
-                {categories.filter(c => c.type === form.type).map(c => <option key={c.id}>{c.name}</option>)}
+              <select value={form.categoryId} onChange={set("categoryId")} className="w-full px-4 py-3 rounded-xl border border-[#e8e4f5] bg-[#faf8ff] text-sm focus:outline-none focus:ring-2 focus:ring-[#7c6fcd]/40 focus:border-[#7c6fcd] transition-all">
+                {categories.filter(c => c.type === form.type).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div className="flex gap-3 pt-2">
@@ -175,7 +171,7 @@ export default function Transactions({ toast }: Props) {
       )}
 
       {deleteId !== null && (
-        <ConfirmDialog message="Bạn có chắc muốn xoá giao dịch này không?" onConfirm={() => { setList(l => l.filter(t => t.id !== deleteId)); setDeleteId(null); toast("Đã xoá giao dịch!", "warning"); }} onCancel={() => setDeleteId(null)} />
+        <ConfirmDialog message="Bạn có chắc muốn xoá giao dịch này không?" onConfirm={async () => { try { await api.deleteTransaction(deleteId); setList(await api.transactions()); setDeleteId(null); toast("Đã xoá giao dịch!", "warning"); } catch (error) { toast(error instanceof Error ? error.message : "Không thể xoá giao dịch!", "error"); } }} onCancel={() => setDeleteId(null)} />
       )}
     </div>
   );
