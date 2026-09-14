@@ -1,99 +1,113 @@
-using backend.Extensions;
+using backend.DTOs.Account;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace backend.Controllers;
 
 [ApiController]
-[Route("api/accounts")]
+[Route("api/[controller]")]
 [Authorize]
-public class AccountsController : ControllerBase
+public class AccountController : ControllerBase
 {
     private readonly IAccountService _accountService;
 
-    public AccountsController(IAccountService accountService)
+    public AccountController(
+        IAccountService accountService)
     {
         _accountService = accountService;
     }
 
+    private int GetUserId()
+    {
+        return int.Parse(
+            User.FindFirstValue(ClaimTypes.NameIdentifier)!
+        );
+    }
+
+    // GET: api/account
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var userId = User.GetUserId();
+        var userId = GetUserId();
 
-        return Ok(
-            await _accountService.GetAllAsync(userId));
+        var accounts = await _accountService
+            .GetAllAsync(userId);
+
+        return Ok(accounts);
     }
 
-    [HttpGet("{id}")]
+    // GET: api/account/1
+    [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var userId = User.GetUserId();
+        var userId = GetUserId();
 
-        var account = await _accountService.GetByIdAsync(
-            userId,
-            id);
+        var account = await _accountService
+            .GetByIdAsync(userId, id);
 
         if (account == null)
-            return NotFound();
+            return NotFound(new
+            {
+                message = "Account not found."
+            });
 
         return Ok(account);
     }
 
+    // POST: api/account
     [HttpPost]
     public async Task<IActionResult> Create(
-        string name,
-        string type,
-        decimal balance)
+        [FromBody] CreateAccountRequest request)
     {
-        var userId = User.GetUserId();
+        var userId = GetUserId();
 
-        var account = await _accountService.CreateAsync(
-            userId,
-            name,
-            type,
-            balance);
+        var account = await _accountService
+            .CreateAsync(userId, request);
 
-        return Ok(account);
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = account.Id },
+            account
+        );
     }
 
-    [HttpPut("{id}")]
+    // PUT: api/account/1
+    [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(
         int id,
-        string name,
-        string type)
+        [FromBody] UpdateAccountRequest request)
     {
-        var userId = User.GetUserId();
+        var userId = GetUserId();
 
-        var account = await _accountService.UpdateAsync(
-            userId,
-            id,
-            name,
-            type);
+        var account = await _accountService
+            .UpdateAsync(userId, id, request);
 
         if (account == null)
-            return NotFound();
+            return NotFound(new
+            {
+                message = "Account not found."
+            });
 
         return Ok(account);
     }
 
-    [HttpDelete("{id}")]
+    // DELETE: api/account/1
+    [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var userId = User.GetUserId();
+        var userId = GetUserId();
 
-        var result = await _accountService.DeleteAsync(
-            userId,
-            id);
+        var deleted = await _accountService
+            .DeleteAsync(userId, id);
 
-        if (!result)
-            return BadRequest(
-                "Account does not exist or has transactions.");
+        if (!deleted)
+            return NotFound(new
+            {
+                message = "Account not found."
+            });
 
-        return Ok(new
-        {
-            message = "Account deleted successfully."
-        });
+        return NoContent();
     }
 }

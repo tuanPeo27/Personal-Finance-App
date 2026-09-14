@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.DTOs.Account;
 using backend.Models;
 using backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -14,80 +15,116 @@ public class AccountService : IAccountService
         _context = context;
     }
 
-    public async Task<IEnumerable<Account>> GetAllAsync(int userId)
+    // GET ALL
+    public async Task<IEnumerable<AccountResponse>> GetAllAsync(
+        int userId)
     {
         return await _context.Accounts
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.CreatedAt)
+            .Select(x => new AccountResponse
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Type = x.Type,
+                Balance = x.Balance,
+                CreatedAt = x.CreatedAt
+            })
             .ToListAsync();
     }
 
-    public async Task<Account?> GetByIdAsync(
+    // GET BY ID
+    public async Task<AccountResponse?> GetByIdAsync(
         int userId,
         int accountId)
     {
         return await _context.Accounts
-            .FirstOrDefaultAsync(x =>
+            .Where(x =>
                 x.Id == accountId &&
-                x.UserId == userId);
+                x.UserId == userId)
+            .Select(x => new AccountResponse
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Type = x.Type,
+                Balance = x.Balance,
+                CreatedAt = x.CreatedAt
+            })
+            .FirstOrDefaultAsync();
     }
 
-    public async Task<Account> CreateAsync(
+    // CREATE
+    public async Task<AccountResponse> CreateAsync(
         int userId,
-        string name,
-        string type,
-        decimal balance)
+        CreateAccountRequest request)
     {
         var account = new Account
         {
             UserId = userId,
-            Name = name,
-            Type = type,
-            Balance = balance,
+            Name = request.Name,
+            Type = request.Type,
+            Balance = request.Balance,
             CreatedAt = DateTime.UtcNow
         };
 
         _context.Accounts.Add(account);
+
         await _context.SaveChangesAsync();
 
-        return account;
+        return new AccountResponse
+        {
+            Id = account.Id,
+            Name = account.Name,
+            Type = account.Type,
+            Balance = account.Balance,
+            CreatedAt = account.CreatedAt
+        };
     }
 
-    public async Task<Account?> UpdateAsync(
+    // UPDATE
+    public async Task<AccountResponse?> UpdateAsync(
         int userId,
         int accountId,
-        string name,
-        string type)
+        UpdateAccountRequest request)
     {
-        var account = await GetByIdAsync(userId, accountId);
+        var account = await _context.Accounts
+            .FirstOrDefaultAsync(x =>
+                x.Id == accountId &&
+                x.UserId == userId);
 
         if (account == null)
             return null;
 
-        account.Name = name;
-        account.Type = type;
+        account.Name = request.Name;
+        account.Type = request.Type;
 
         await _context.SaveChangesAsync();
 
-        return account;
+        return new AccountResponse
+        {
+            Id = account.Id,
+            Name = account.Name,
+            Type = account.Type,
+            Balance = account.Balance,
+            CreatedAt = account.CreatedAt
+        };
     }
 
+    // DELETE
     public async Task<bool> DeleteAsync(
         int userId,
         int accountId)
     {
-        var account = await GetByIdAsync(userId, accountId);
+        var account = await _context.Accounts
+            .FirstOrDefaultAsync(x =>
+                x.Id == accountId &&
+                x.UserId == userId);
 
         if (account == null)
             return false;
 
-        var hasTransactions = await _context.Transactions
-            .AnyAsync(x => x.AccountId == accountId);
-
-        if (hasTransactions)
-            return false;
-
         _context.Accounts.Remove(account);
+
         await _context.SaveChangesAsync();
 
         return true;
