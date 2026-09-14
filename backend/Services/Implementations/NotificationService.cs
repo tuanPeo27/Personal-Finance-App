@@ -1,6 +1,8 @@
 using backend.Data;
+using backend.Hubs;
 using backend.Models;
 using backend.Services.Interfaces;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services.Implementations;
@@ -8,10 +10,14 @@ namespace backend.Services.Implementations;
 public class NotificationService : INotificationService
 {
     private readonly AppDbContext _context;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
-    public NotificationService(AppDbContext context)
+    public NotificationService(
+        AppDbContext context,
+        IHubContext<NotificationHub> hubContext)
     {
         _context = context;
+        _hubContext = hubContext;
     }
 
     public async Task<IEnumerable<Notification>> GetAllAsync(
@@ -60,9 +66,17 @@ public class NotificationService : INotificationService
             CreatedAt = DateTime.UtcNow
         };
 
+        // 1. Lưu notification vào database
         _context.Notifications.Add(notification);
 
         await _context.SaveChangesAsync();
+
+        // 2. Gửi notification realtime đến đúng user
+        await _hubContext.Clients
+            .User(userId.ToString())
+            .SendAsync(
+                "ReceiveNotification",
+                notification);
 
         return notification;
     }
