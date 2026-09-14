@@ -1,69 +1,54 @@
+using backend.DTOs.Auth;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Controllers;
 
 [ApiController]
-[Route("api/auth")]
+[Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
-    private readonly IJwtService _jwtService;
 
-    public AuthController(
-        IAuthService authService,
-        IJwtService jwtService)
+    public AuthController(IAuthService authService)
     {
         _authService = authService;
-        _jwtService = jwtService;
     }
 
     [HttpPost("register")]
     public async Task<IActionResult> Register(
-        string fullName,
-        string email,
-        string password)
+        [FromBody] RegisterRequest request)
     {
-        var user = await _authService.RegisterAsync(
-            fullName,
-            email,
-            password);
+        var result = await _authService.RegisterAsync(request);
 
-        if (user == null)
-            return BadRequest("Email already exists.");
-
-        return Ok(new
+        if (!result)
         {
-            message = "Register successfully.",
-            userId = user.Id,
-            user.FullName,
-            user.Email
+            return Conflict(new
+            {
+                message = "Email already exists."
+            });
+        }
+
+        return StatusCode(201, new
+        {
+            message = "Register successfully."
         });
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login(
-        string email,
-        string password)
+        [FromBody] LoginRequest request)
     {
-        var user = await _authService.LoginAsync(
-            email,
-            password);
+        var result = await _authService.LoginAsync(request);
 
-        if (user == null)
-            return Unauthorized("Invalid email or password.");
-
-        var token = _jwtService.GenerateToken(user);
-
-        return Ok(new
+        if (result == null)
         {
-            token,
-            user = new
+            return Unauthorized(new
             {
-                user.Id,
-                user.FullName,
-                user.Email
-            }
-        });
+                message = "Invalid email or password."
+            });
+        }
+
+        return Ok(result);
     }
 }

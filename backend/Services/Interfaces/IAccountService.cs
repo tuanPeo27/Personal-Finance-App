@@ -1,24 +1,23 @@
-using backend.Models;
+using backend.DTOs.Account;
 
 namespace backend.Services.Interfaces;
 
 public interface IAccountService
 {
-    Task<IEnumerable<Account>> GetAllAsync(int userId);
+    Task<IEnumerable<AccountResponse>> GetAllAsync(int userId);
 
-    Task<Account?> GetByIdAsync(int userId, int accountId);
-
-    Task<Account> CreateAsync(
+    Task<AccountResponse?> GetByIdAsync(
         int userId,
-        string name,
-        string type,
-        decimal balance);
+        int accountId);
 
-    Task<Account?> UpdateAsync(
+    Task<AccountResponse> CreateAsync(
+        int userId,
+        CreateAccountRequest request);
+
+    Task<AccountResponse?> UpdateAsync(
         int userId,
         int accountId,
-        string name,
-        string type);
+        UpdateAccountRequest request);
 
     Task<bool> DeleteAsync(
         int userId,

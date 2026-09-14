@@ -6,7 +6,7 @@ using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-
+using backend.Options;
 var builder = WebApplication.CreateBuilder(args);
 
 // =====================================================
@@ -34,6 +34,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 
+builder.Services.Configure<JwtOptions>(
+    builder.Configuration.GetSection("Jwt"));
 // =====================================================
 // APPLICATION SERVICES
 // =====================================================
@@ -136,6 +138,7 @@ builder.Services
 // =====================================================
 
 builder.Services.AddAuthorization();
+
 
 
 // =====================================================

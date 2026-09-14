@@ -1,17 +1,10 @@
-using backend.Models;
+using backend.DTOs.Auth;
 
 namespace backend.Services.Interfaces;
 
 public interface IAuthService
 {
-    Task<User?> RegisterAsync(
-        string fullName,
-        string email,
-        string password);
+    Task<bool> RegisterAsync(RegisterRequest request);
 
-    Task<User?> LoginAsync(
-        string email,
-        string password);
-
-    Task<User?> GetByEmailAsync(string email);
+    Task<LoginResponse?> LoginAsync(LoginRequest request);
 }

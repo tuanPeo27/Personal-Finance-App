@@ -1,70 +1,84 @@
 using backend.Data;
+using backend.DTOs.Auth;
 using backend.Models;
 using backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
 
 namespace backend.Services.Implementations;
 
 public class AuthService : IAuthService
 {
     private readonly AppDbContext _context;
+    private readonly IJwtService _jwtService;
 
-    public AuthService(AppDbContext context)
+    public AuthService(
+        AppDbContext context,
+        IJwtService jwtService)
     {
         _context = context;
+        _jwtService = jwtService;
     }
 
-    public async Task<User?> RegisterAsync(
-        string fullName,
-        string email,
-        string password)
+    public async Task<bool> RegisterAsync(RegisterRequest request)
     {
-        email = email.Trim().ToLower();
+        var email = request.Email.Trim().ToLower();
 
-        var existingUser = await _context.Users
-            .FirstOrDefaultAsync(x => x.Email == email);
+        var exists = await _context.Users
+            .AnyAsync(x => x.Email.ToLower() == email);
 
-        if (existingUser != null)
-            return null;
+        if (exists)
+        {
+            return false;
+        }
 
         var user = new User
         {
-            FullName = fullName,
+            FullName = request.FullName.Trim(),
             Email = email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(
+                request.Password
+            ),
             CreatedAt = DateTime.UtcNow
         };
 
         _context.Users.Add(user);
+
         await _context.SaveChangesAsync();
 
-        return user;
+        return true;
     }
 
-    public async Task<User?> LoginAsync(
-        string email,
-        string password)
+    public async Task<LoginResponse?> LoginAsync(LoginRequest request)
     {
-        email = email.Trim().ToLower();
+        var email = request.Email.Trim().ToLower();
 
         var user = await _context.Users
-            .FirstOrDefaultAsync(x => x.Email == email);
+            .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
 
         if (user == null)
+        {
             return null;
+        }
 
-        var validPassword = BCrypt.Net.BCrypt
-            .Verify(password, user.PasswordHash);
+        var passwordValid = BCrypt.Net.BCrypt.Verify(
+            request.Password,
+            user.PasswordHash
+        );
 
-        return validPassword ? user : null;
-    }
+        if (!passwordValid)
+        {
+            return null;
+        }
 
-    public async Task<User?> GetByEmailAsync(string email)
-    {
-        email = email.Trim().ToLower();
+        var token = _jwtService.GenerateToken(user);
 
-        return await _context.Users
-            .FirstOrDefaultAsync(x => x.Email == email);
+        return new LoginResponse
+        {
+            Token = token,
+            ExpiresAt = _jwtService.GetExpirationTime(),
+            UserId = user.Id,
+            FullName = user.FullName,
+            Email = user.Email
+        };
     }
 }

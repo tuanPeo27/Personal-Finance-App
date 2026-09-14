@@ -1,57 +1,74 @@
-using backend.Models;
-using backend.Services.Interfaces;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using backend.Models;
+using backend.Options;
+using backend.Services.Interfaces;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 
 namespace backend.Services.Implementations;
 
 public class JwtService : IJwtService
 {
-    private readonly IConfiguration _configuration;
+    private readonly JwtOptions _jwtOptions;
 
-    public JwtService(IConfiguration configuration)
+    public JwtService(IOptions<JwtOptions> jwtOptions)
     {
-        _configuration = configuration;
+        _jwtOptions = jwtOptions.Value;
+
+
     }
 
     public string GenerateToken(User user)
     {
-        var key = _configuration["Jwt:Key"];
-
-        if (string.IsNullOrWhiteSpace(key))
-            throw new InvalidOperationException("JWT key is missing.");
-
         var claims = new List<Claim>
         {
             new Claim(
                 ClaimTypes.NameIdentifier,
-                user.Id.ToString()),
+                user.Id.ToString()
+            ),
 
             new Claim(
                 ClaimTypes.Name,
-                user.FullName),
+                user.FullName
+            ),
 
             new Claim(
                 ClaimTypes.Email,
-                user.Email)
+                user.Email
+            )
         };
 
-        var securityKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(key));
+        var key = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(_jwtOptions.Key)
+        );
 
         var credentials = new SigningCredentials(
-            securityKey,
-            SecurityAlgorithms.HmacSha256);
+            key,
+            SecurityAlgorithms.HmacSha256
+        );
+
+        var expires = DateTime.UtcNow.AddHours(
+            _jwtOptions.ExpirationHours
+        );
 
         var token = new JwtSecurityToken(
+            issuer: _jwtOptions.Issuer,
+            audience: _jwtOptions.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(2),
+            expires: expires,
             signingCredentials: credentials
         );
 
         return new JwtSecurityTokenHandler()
             .WriteToken(token);
+    }
+
+    public DateTime GetExpirationTime()
+    {
+        return DateTime.UtcNow.AddHours(
+            _jwtOptions.ExpirationHours
+        );
     }
 }
