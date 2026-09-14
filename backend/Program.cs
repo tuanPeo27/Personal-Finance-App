@@ -15,6 +15,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Controllers
 builder.Services.AddControllers();
+// Health Checks
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();;
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -169,6 +171,8 @@ app.UseAuthorization();
 // =====================================================
 // ENDPOINTS
 // =====================================================
+// Health Check
+app.MapHealthChecks("/health");
 
 // API Controllers
 app.MapControllers();
