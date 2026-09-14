@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-display: 'Nunito', sans-serif;
+
+  --color-bg: #faf8ff;
+  --color-card: #ffffff;
+  --color-sidebar: #ffffff;
+
+  --color-primary: #7c6fcd;
+  --color-primary-light: #ede9fb;
+  --color-primary-dark: #5a4fb5;
+
+  --color-mint: #4ecdc4;
+  --color-mint-light: #e0f7f5;
+  --color-peach: #ff9a8b;
+  --color-peach-light: #ffe8e4;
+  --color-lavender: #c4b5fd;
+  --color-lavender-light: #ede9fb;
+  --color-gold: #fbbf24;
+  --color-gold-light: #fef3c7;
+
+  --color-income: #10b981;
+  --color-income-light: #d1fae5;
+  --color-expense: #f87171;
+  --color-expense-light: #fee2e2;
+  --color-savings: #818cf8;
+  --color-savings-light: #e0e7ff;
+  --color-warning: #fb923c;
+  --color-warning-light: #ffedd5;
+
+  --color-text: #1e1b4b;
+  --color-text-muted: #6b7280;
+  --color-border: #e8e4f5;
+
+  --radius-card: 1.25rem;
+  --radius-btn: 0.875rem;
+  --radius-input: 0.75rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #faf8ff;
+  color: #1e1b4b;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c4b5fd;
+  border-radius: 99px;
+}
+
+.font-display {
+  font-family: 'Nunito', sans-serif;
+}
