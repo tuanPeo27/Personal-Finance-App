@@ -1,4 +1,5 @@
 import type { Page } from "../App";
+import { getStoredUser } from "../lib/api";
 
 const navItems = [
   { id: "dashboard", label: "Tổng quan", icon: "⊞" },
@@ -7,6 +8,7 @@ const navItems = [
   { id: "categories", label: "Danh mục", icon: "🏷" },
   { id: "budgets", label: "Ngân sách", icon: "📊" },
   { id: "goals", label: "Mục tiêu", icon: "🎯" },
+  { id: "notifications", label: "Thông báo", icon: "🔔" },
 ];
 
 interface Props {
@@ -17,6 +19,8 @@ interface Props {
 }
 
 export default function Sidebar({ page, setPage, open, setOpen }: Props) {
+  const user = getStoredUser();
+  const initials = user?.fullName?.trim().split(/\s+/).map((name) => name[0]).slice(-2).join("").toUpperCase() || "U";
   const go = (p: Page) => {
     setPage(p);
     setOpen(false);
@@ -71,10 +75,10 @@ export default function Sidebar({ page, setPage, open, setOpen }: Props) {
             onClick={() => go("profile")}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-600 transition-all ${page === "profile" ? "bg-[#ede9fb] text-[#7c6fcd]" : "text-[#6b7280] hover:bg-[#faf8ff] hover:text-[#1e1b4b]"}`}
           >
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#7c6fcd] to-[#4ecdc4] flex items-center justify-center text-white text-xs font-700">NT</div>
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#7c6fcd] to-[#4ecdc4] flex items-center justify-center text-white text-xs font-700">{initials}</div>
             <div className="flex-1 text-left">
-              <p className="text-xs font-700 text-[#1e1b4b]">Nguyễn Tuấn</p>
-              <p className="text-xs text-[#6b7280]">tuan@email.com</p>
+              <p className="text-xs font-700 text-[#1e1b4b] truncate">{user?.fullName ?? "Người dùng"}</p>
+              <p className="text-xs text-[#6b7280] truncate">{user?.email ?? ""}</p>
             </div>
           </button>
           <button

@@ -1,10 +1,13 @@
 import { useState } from "react";
+import type { Page } from "../App";
+import { getStoredUser } from "../lib/api";
 
-interface Props { toast: (msg: string, t?: "success" | "error" | "warning") => void; }
+interface Props { toast: (msg: string, t?: "success" | "error" | "warning") => void; setPage: (p: Page) => void; }
 
-export default function Profile({ toast }: Props) {
+export default function Profile({ toast, setPage }: Props) {
+  const user = getStoredUser();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: "Nguyễn Tuấn", email: "tuan@email.com" });
+  const [form, setForm] = useState({ name: user?.fullName ?? "", email: user?.email ?? "" });
   const [draft, setDraft] = useState(form);
 
   const save = () => {
@@ -78,7 +81,7 @@ export default function Profile({ toast }: Props) {
         ].map((item, i, arr) => (
           <button
             key={item.label}
-            onClick={() => toast(`Tính năng "${item.label}" sẽ sớm ra mắt! 🚀`, "warning")}
+            onClick={() => item.label === "Thông báo" ? setPage("notifications") : toast(`Tính năng "${item.label}" sẽ sớm ra mắt! 🚀`, "warning")}
             className={`w-full flex items-center gap-4 px-5 py-4 hover:bg-[#faf8ff] transition-colors text-left ${i < arr.length - 1 ? "border-b border-[#e8e4f5]" : ""}`}
           >
             <span className="text-xl w-7 text-center">{item.icon}</span>
