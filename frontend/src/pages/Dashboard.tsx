@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from "recharts";
 import type { Page } from "../App";
+import { getStoredUser } from "../lib/api";
 import { fmtVND, transactions, budgets, goals, chartMonths, incomeData, expenseData, balanceData } from "../data/mockData";
 
 interface Props {
@@ -34,6 +35,7 @@ const fmtM = (v: number) => `${(v / 1000000).toFixed(0)}tr`;
 
 export default function Dashboard({ setPage }: Props) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const user = getStoredUser();
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Chào buổi sáng" : hour < 18 ? "Chào buổi chiều" : "Chào buổi tối";
 
@@ -41,7 +43,7 @@ export default function Dashboard({ setPage }: Props) {
     <div className="space-y-6 pb-20 lg:pb-6">
       {/* Greeting */}
       <div>
-        <h2 className="font-display font-900 text-2xl text-[#1e1b4b]">{greeting}, Nguyễn Tuấn! 👋</h2>
+        <h2 className="font-display font-900 text-2xl text-[#1e1b4b]">{greeting}, {user?.fullName ?? "bạn"}! 👋</h2>
         <p className="text-[#6b7280] text-sm">Đây là tổng quan tài chính của bạn hôm nay.</p>
       </div>
 

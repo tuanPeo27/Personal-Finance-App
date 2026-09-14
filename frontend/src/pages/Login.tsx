@@ -20,8 +20,13 @@ export default function Login({ goTo, toast }: Props) {
     try {
       const result = await api.login(email, password);
       localStorage.setItem("finance_token", result.token);
-      localStorage.setItem("finance_user", JSON.stringify(result.user));
-      toast(`Chào mừng trở lại, ${result.user.fullName}! 👋`);
+      const user = {
+        id: result.userId,
+        fullName: result.fullName,
+        email: result.email,
+      };
+      localStorage.setItem("finance_user", JSON.stringify(user));
+      toast(`Chào mừng trở lại, ${user.fullName}! 👋`);
       goTo("dashboard");
     } catch (error) {
       toast(error instanceof Error ? error.message : "Đăng nhập thất bại!", "error");

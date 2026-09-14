@@ -8,6 +8,7 @@ import Categories from "./pages/Categories";
 import Budgets from "./pages/Budgets";
 import Goals from "./pages/Goals";
 import Profile from "./pages/Profile";
+import Notifications from "./pages/Notifications";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Toast from "./components/Toast";
@@ -21,7 +22,8 @@ export type Page =
   | "categories"
   | "budgets"
   | "goals"
-  | "profile";
+  | "profile"
+  | "notifications";
 
 export type ToastType = { id: number; message: string; type: "success" | "error" | "warning" };
 
@@ -57,7 +59,8 @@ export default function App() {
               {page === "categories" && <Categories toast={addToast} />}
               {page === "budgets" && <Budgets toast={addToast} />}
               {page === "goals" && <Goals toast={addToast} />}
-              {page === "profile" && <Profile toast={addToast} />}
+              {page === "profile" && <Profile toast={addToast} setPage={setPage} />}
+              {page === "notifications" && <Notifications toast={addToast} />}
             </main>
           </div>
         </div>
