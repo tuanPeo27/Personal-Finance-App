@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.DTOs.Budget;
 using backend.Models;
 using backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -14,116 +15,150 @@ public class BudgetService : IBudgetService
         _context = context;
     }
 
-    public async Task<IEnumerable<Budget>> GetAllAsync(
+    // GET ALL
+    public async Task<IEnumerable<BudgetResponse>> GetAllAsync(
         int userId)
     {
-        return await _context.Budgets
+        var budgets = await _context.Budgets
             .Include(x => x.Category)
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.Year)
             .ThenByDescending(x => x.Month)
             .ToListAsync();
+
+        var result = new List<BudgetResponse>();
+
+        foreach (var budget in budgets)
+        {
+            result.Add(await MapToResponseAsync(budget));
+        }
+
+        return result;
     }
 
-    public async Task<IEnumerable<Budget>> GetByMonthAsync(
+    // GET BY ID
+    public async Task<BudgetResponse?> GetByIdAsync(
+        int userId,
+        int budgetId)
+    {
+        var budget = await _context.Budgets
+            .Include(x => x.Category)
+            .FirstOrDefaultAsync(x =>
+                x.Id == budgetId &&
+                x.UserId == userId);
+
+        if (budget == null)
+            return null;
+
+        return await MapToResponseAsync(budget);
+    }
+
+    // GET BY MONTH
+    public async Task<IEnumerable<BudgetResponse>> GetByMonthAsync(
         int userId,
         int month,
         int year)
     {
-        return await _context.Budgets
+        var budgets = await _context.Budgets
             .Include(x => x.Category)
             .Where(x =>
                 x.UserId == userId &&
                 x.Month == month &&
                 x.Year == year)
+            .OrderBy(x => x.Category.Name)
             .ToListAsync();
-    }
 
-    public async Task<Budget?> GetByIdAsync(
-        int userId,
-        int budgetId)
-    {
-        return await _context.Budgets
-            .Include(x => x.Category)
-            .FirstOrDefaultAsync(x =>
-                x.Id == budgetId &&
-                x.UserId == userId);
-    }
+        var result = new List<BudgetResponse>();
 
-    public async Task<Budget?> CreateAsync(
-        int userId,
-        int categoryId,
-        decimal amount,
-        int month,
-        int year)
-    {
-        if (amount <= 0 ||
-            month < 1 ||
-            month > 12)
+        foreach (var budget in budgets)
         {
-            return null;
+            result.Add(await MapToResponseAsync(budget));
         }
 
+        return result;
+    }
+
+    // CREATE
+    public async Task<BudgetResponse?> CreateAsync(
+        int userId,
+        CreateBudgetRequest request)
+    {
+        // Kiểm tra Category có thuộc User hay không
         var category = await _context.Categories
             .FirstOrDefaultAsync(x =>
-                x.Id == categoryId &&
+                x.Id == request.CategoryId &&
                 x.UserId == userId);
 
         if (category == null)
             return null;
 
-        var exists = await _context.Budgets
+        // Không cho tạo 2 budget cùng category + tháng + năm
+        var existingBudget = await _context.Budgets
             .AnyAsync(x =>
                 x.UserId == userId &&
-                x.CategoryId == categoryId &&
-                x.Month == month &&
-                x.Year == year);
+                x.CategoryId == request.CategoryId &&
+                x.Month == request.Month &&
+                x.Year == request.Year);
 
-        if (exists)
-            return null;
+        if (existingBudget)
+        {
+            throw new InvalidOperationException(
+                "A budget already exists for this category and month.");
+        }
 
         var budget = new Budget
         {
             UserId = userId,
-            CategoryId = categoryId,
-            Amount = amount,
-            Month = month,
-            Year = year
+            CategoryId = request.CategoryId,
+            Amount = request.Amount,
+            Month = request.Month,
+            Year = request.Year,
+            CreatedAt = DateTime.UtcNow
         };
 
         _context.Budgets.Add(budget);
 
         await _context.SaveChangesAsync();
 
-        return budget;
+        // Load Category để trả CategoryName
+        await _context.Entry(budget)
+            .Reference(x => x.Category)
+            .LoadAsync();
+
+        return await MapToResponseAsync(budget);
     }
 
-    public async Task<Budget?> UpdateAsync(
+    // UPDATE
+    public async Task<BudgetResponse?> UpdateAsync(
         int userId,
         int budgetId,
-        decimal amount)
+        UpdateBudgetRequest request)
     {
-        var budget = await GetByIdAsync(
-            userId,
-            budgetId);
+        var budget = await _context.Budgets
+            .Include(x => x.Category)
+            .FirstOrDefaultAsync(x =>
+                x.Id == budgetId &&
+                x.UserId == userId);
 
-        if (budget == null || amount <= 0)
+        if (budget == null)
             return null;
 
-        budget.Amount = amount;
+        budget.Amount = request.Amount;
 
         await _context.SaveChangesAsync();
 
-        return budget;
+        return await MapToResponseAsync(budget);
     }
 
+    // DELETE
     public async Task<bool> DeleteAsync(
         int userId,
         int budgetId)
     {
-        var budget = await GetByIdAsync(
-            userId,
-            budgetId);
+        var budget = await _context.Budgets
+            .FirstOrDefaultAsync(x =>
+                x.Id == budgetId &&
+                x.UserId == userId);
 
         if (budget == null)
             return false;
@@ -135,19 +170,52 @@ public class BudgetService : IBudgetService
         return true;
     }
 
-    public async Task<decimal> GetSpentAmountAsync(
-        int userId,
-        int categoryId,
-        int month,
-        int year)
+    // MAP ENTITY -> RESPONSE
+    private async Task<BudgetResponse> MapToResponseAsync(
+        Budget budget)
     {
-        return await _context.Transactions
+        var spentAmount = await _context.Transactions
             .Where(x =>
-                x.UserId == userId &&
-                x.CategoryId == categoryId &&
+                x.UserId == budget.UserId &&
+                x.CategoryId == budget.CategoryId &&
                 x.Type == "Expense" &&
-                x.TransactionDate.Month == month &&
-                x.TransactionDate.Year == year)
-            .SumAsync(x => x.Amount);
+                x.TransactionDate.Month == budget.Month &&
+                x.TransactionDate.Year == budget.Year)
+            .SumAsync(x => (decimal?)x.Amount) ?? 0;
+
+        var remainingAmount =
+            budget.Amount - spentAmount;
+
+        var percentageUsed =
+            budget.Amount > 0
+                ? (double)(spentAmount / budget.Amount) * 100
+                : 0;
+
+        return new BudgetResponse
+        {
+            Id = budget.Id,
+
+            CategoryId = budget.CategoryId,
+
+            CategoryName =
+                budget.Category?.Name ?? string.Empty,
+
+            Amount = budget.Amount,
+
+            SpentAmount = spentAmount,
+
+            RemainingAmount = remainingAmount,
+
+            PercentageUsed = percentageUsed,
+
+            IsExceeded =
+                spentAmount > budget.Amount,
+
+            Month = budget.Month,
+
+            Year = budget.Year,
+
+            CreatedAt = budget.CreatedAt
+        };
     }
 }

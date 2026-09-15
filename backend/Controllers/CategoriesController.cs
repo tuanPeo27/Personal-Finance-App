@@ -1,3 +1,4 @@
+using backend.DTOs.Category;
 using backend.Extensions;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -12,8 +13,7 @@ public class CategoriesController : ControllerBase
 {
     private readonly ICategoryService _categoryService;
 
-    public CategoriesController(
-        ICategoryService categoryService)
+    public CategoriesController(ICategoryService categoryService)
     {
         _categoryService = categoryService;
     }
@@ -32,9 +32,10 @@ public class CategoriesController : ControllerBase
     {
         var userId = User.GetUserId();
 
-        var category = await _categoryService.GetByIdAsync(
-            userId,
-            id);
+        var category =
+            await _categoryService.GetByIdAsync(
+                userId,
+                id);
 
         if (category == null)
             return NotFound();
@@ -55,17 +56,14 @@ public class CategoriesController : ControllerBase
 
     [HttpPost]
     public async Task<IActionResult> Create(
-        string name,
-        string type,
-        string? icon)
+        CreateCategoryRequest request)
     {
         var userId = User.GetUserId();
 
-        var category = await _categoryService.CreateAsync(
-            userId,
-            name,
-            type,
-            icon);
+        var category =
+            await _categoryService.CreateAsync(
+                userId,
+                request);
 
         return Ok(category);
     }
@@ -73,18 +71,15 @@ public class CategoriesController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(
         int id,
-        string name,
-        string type,
-        string? icon)
+        UpdateCategoryRequest request)
     {
         var userId = User.GetUserId();
 
-        var category = await _categoryService.UpdateAsync(
-            userId,
-            id,
-            name,
-            type,
-            icon);
+        var category =
+            await _categoryService.UpdateAsync(
+                userId,
+                id,
+                request);
 
         if (category == null)
             return NotFound();
@@ -97,9 +92,10 @@ public class CategoriesController : ControllerBase
     {
         var userId = User.GetUserId();
 
-        var result = await _categoryService.DeleteAsync(
-            userId,
-            id);
+        var result =
+            await _categoryService.DeleteAsync(
+                userId,
+                id);
 
         if (!result)
             return BadRequest(

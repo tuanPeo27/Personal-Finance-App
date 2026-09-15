@@ -1,3 +1,4 @@
+using backend.DTOs.User;
 using backend.Extensions;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -27,52 +28,45 @@ public class UsersController : ControllerBase
         if (user == null)
             return NotFound();
 
-        return Ok(new
-        {
-            user.Id,
-            user.FullName,
-            user.Email,
-            user.CreatedAt
-        });
-    }
-
-    [HttpPut("me")]
-    public async Task<IActionResult> UpdateProfile(
-        string fullName,
-        string email)
-    {
-        var userId = User.GetUserId();
-
-        var user = await _userService.UpdateProfileAsync(
-            userId,
-            fullName,
-            email);
-
-        if (user == null)
-            return BadRequest("Email already exists.");
-
         return Ok(user);
     }
 
-    [HttpPut("change-password")]
-    public async Task<IActionResult> ChangePassword(
-        string currentPassword,
-        string newPassword)
+    [HttpPut("me")]
+    public async Task<IActionResult> UpdateMe(
+        UpdateUserRequest request)
     {
         var userId = User.GetUserId();
 
-        var result = await _userService.ChangePasswordAsync(
-            userId,
-            currentPassword,
-            newPassword);
+        try
+        {
+            var user = await _userService
+                .UpdateAsync(userId, request);
+
+            if (user == null)
+                return NotFound();
+
+            return Ok(user);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
+    }
+
+    [HttpDelete("me")]
+    public async Task<IActionResult> DeleteMe()
+    {
+        var userId = User.GetUserId();
+
+        var result = await _userService
+            .DeleteAsync(userId);
 
         if (!result)
-            return BadRequest(
-                "Current password is incorrect.");
+            return NotFound();
 
         return Ok(new
         {
-            message = "Password changed successfully."
+            message = "User deleted successfully."
         });
     }
 }

@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.DTOs.Category;
 using backend.Models;
 using backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -14,15 +15,41 @@ public class CategoryService : ICategoryService
         _context = context;
     }
 
-    public async Task<IEnumerable<Category>> GetAllAsync(int userId)
+    public async Task<IEnumerable<CategoryResponse>> GetAllAsync(
+        int userId)
     {
         return await _context.Categories
             .Where(x => x.UserId == userId)
             .OrderBy(x => x.Name)
+            .Select(x => new CategoryResponse
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Type = x.Type,
+                Icon = x.Icon
+            })
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<Category>> GetByTypeAsync(
+    public async Task<CategoryResponse?> GetByIdAsync(
+        int userId,
+        int categoryId)
+    {
+        return await _context.Categories
+            .Where(x =>
+                x.Id == categoryId &&
+                x.UserId == userId)
+            .Select(x => new CategoryResponse
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Type = x.Type,
+                Icon = x.Icon
+            })
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<IEnumerable<CategoryResponse>> GetByTypeAsync(
         int userId,
         string type)
     {
@@ -31,75 +58,91 @@ public class CategoryService : ICategoryService
                 x.UserId == userId &&
                 x.Type == type)
             .OrderBy(x => x.Name)
+            .Select(x => new CategoryResponse
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Type = x.Type,
+                Icon = x.Icon
+            })
             .ToListAsync();
     }
 
-    public async Task<Category?> GetByIdAsync(
+    public async Task<CategoryResponse> CreateAsync(
         int userId,
-        int categoryId)
-    {
-        return await _context.Categories
-            .FirstOrDefaultAsync(x =>
-                x.Id == categoryId &&
-                x.UserId == userId);
-    }
-
-    public async Task<Category> CreateAsync(
-        int userId,
-        string name,
-        string type,
-        string? icon)
+        CreateCategoryRequest request)
     {
         var category = new Category
         {
             UserId = userId,
-            Name = name,
-            Type = type,
-            Icon = icon
+            Name = request.Name,
+            Type = request.Type,
+            Icon = request.Icon
         };
 
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
 
-        return category;
+        return new CategoryResponse
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Type = category.Type,
+            Icon = category.Icon
+        };
     }
 
-    public async Task<Category?> UpdateAsync(
+    public async Task<CategoryResponse?> UpdateAsync(
         int userId,
         int categoryId,
-        string name,
-        string type,
-        string? icon)
+        UpdateCategoryRequest request)
     {
-        var category =
-            await GetByIdAsync(userId, categoryId);
+        var category = await _context.Categories
+            .FirstOrDefaultAsync(x =>
+                x.Id == categoryId &&
+                x.UserId == userId);
 
         if (category == null)
             return null;
 
-        category.Name = name;
-        category.Type = type;
-        category.Icon = icon;
+        category.Name = request.Name;
+        category.Type = request.Type;
+        category.Icon = request.Icon;
 
         await _context.SaveChangesAsync();
 
-        return category;
+        return new CategoryResponse
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Type = category.Type,
+            Icon = category.Icon
+        };
     }
 
     public async Task<bool> DeleteAsync(
         int userId,
         int categoryId)
     {
-        var category =
-            await GetByIdAsync(userId, categoryId);
+        var category = await _context.Categories
+            .FirstOrDefaultAsync(x =>
+                x.Id == categoryId &&
+                x.UserId == userId);
 
         if (category == null)
             return false;
 
-        var used = await _context.Transactions
-            .AnyAsync(x => x.CategoryId == categoryId);
+        var usedInTransactions = await _context.Transactions
+            .AnyAsync(x =>
+                x.CategoryId == categoryId &&
+                x.UserId == userId);
 
-        if (used)
+        var usedInBudgets = await _context.Budgets
+            .AnyAsync(x =>
+                x.CategoryId == categoryId &&
+                x.UserId == userId);
+
+        if (usedInTransactions || usedInBudgets)
             return false;
 
         _context.Categories.Remove(category);

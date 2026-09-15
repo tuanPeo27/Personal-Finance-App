@@ -1,3 +1,4 @@
+using backend.DTOs.Budget;
 using backend.Extensions;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +13,8 @@ public class BudgetsController : ControllerBase
 {
     private readonly IBudgetService _budgetService;
 
-    public BudgetsController(IBudgetService budgetService)
+    public BudgetsController(
+        IBudgetService budgetService)
     {
         _budgetService = budgetService;
     }
@@ -24,20 +26,6 @@ public class BudgetsController : ControllerBase
 
         return Ok(
             await _budgetService.GetAllAsync(userId));
-    }
-
-    [HttpGet("month")]
-    public async Task<IActionResult> GetByMonth(
-        int month,
-        int year)
-    {
-        var userId = User.GetUserId();
-
-        return Ok(
-            await _budgetService.GetByMonthAsync(
-                userId,
-                month,
-                year));
     }
 
     [HttpGet("{id}")]
@@ -55,68 +43,55 @@ public class BudgetsController : ControllerBase
         return Ok(budget);
     }
 
-    [HttpGet("{id}/spent")]
-    public async Task<IActionResult> GetSpent(
-        int id)
-    {
-        var userId = User.GetUserId();
-
-        var budget = await _budgetService.GetByIdAsync(
-            userId,
-            id);
-
-        if (budget == null)
-            return NotFound();
-
-        var spent =
-            await _budgetService.GetSpentAmountAsync(
-                userId,
-                budget.CategoryId,
-                budget.Month,
-                budget.Year);
-
-        return Ok(new
-        {
-            budget.Amount,
-            spent,
-            remaining = budget.Amount - spent
-        });
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> Create(
-        int categoryId,
-        decimal amount,
+    [HttpGet("month")]
+    public async Task<IActionResult> GetByMonth(
         int month,
         int year)
     {
         var userId = User.GetUserId();
 
-        var budget = await _budgetService.CreateAsync(
-            userId,
-            categoryId,
-            amount,
-            month,
-            year);
+        return Ok(
+            await _budgetService.GetByMonthAsync(
+                userId,
+                month,
+                year));
+    }
 
-        if (budget == null)
-            return BadRequest(
-                "Invalid or duplicate budget.");
+    [HttpPost]
+    public async Task<IActionResult> Create(
+        CreateBudgetRequest request)
+    {
+        var userId = User.GetUserId();
 
-        return Ok(budget);
+        try
+        {
+            var budget = await _budgetService.CreateAsync(
+                userId,
+                request);
+
+            if (budget == null)
+                return BadRequest(
+                    "Category does not exist or does not belong to user.");
+
+            return Ok(budget);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(
         int id,
-        decimal amount)
+        UpdateBudgetRequest request)
     {
         var userId = User.GetUserId();
 
         var budget = await _budgetService.UpdateAsync(
             userId,
             id,
-            amount);
+            request);
 
         if (budget == null)
             return NotFound();
@@ -134,7 +109,8 @@ public class BudgetsController : ControllerBase
             id);
 
         if (!result)
-            return NotFound();
+            return BadRequest(
+                "Budget does not exist.");
 
         return Ok(new
         {

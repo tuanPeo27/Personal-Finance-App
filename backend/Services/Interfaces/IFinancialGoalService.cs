@@ -1,32 +1,29 @@
-using backend.Models;
+using backend.DTOs.FinancialGoal;
 
 namespace backend.Services.Interfaces;
 
 public interface IFinancialGoalService
 {
-    Task<IEnumerable<FinancialGoal>> GetAllAsync(int userId);
+    Task<IEnumerable<FinancialGoalResponse>> GetAllAsync(
+        int userId);
 
-    Task<FinancialGoal?> GetByIdAsync(
+    Task<FinancialGoalResponse?> GetByIdAsync(
         int userId,
         int goalId);
 
-    Task<FinancialGoal> CreateAsync(
+    Task<FinancialGoalResponse> CreateAsync(
         int userId,
-        string name,
-        decimal targetAmount,
-        DateTime? deadline);
+        CreateFinancialGoalRequest request);
 
-    Task<FinancialGoal?> UpdateAsync(
+    Task<FinancialGoalResponse?> UpdateAsync(
         int userId,
         int goalId,
-        string name,
-        decimal targetAmount,
-        DateTime? deadline);
+        UpdateFinancialGoalRequest request);
 
-    Task<FinancialGoal?> UpdateProgressAsync(
+    Task<FinancialGoalResponse?> UpdateProgressAsync(
         int userId,
         int goalId,
-        decimal currentAmount);
+        UpdateGoalProgressRequest request);
 
     Task<bool> DeleteAsync(
         int userId,

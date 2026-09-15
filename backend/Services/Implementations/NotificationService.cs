@@ -1,8 +1,7 @@
 using backend.Data;
-using backend.Hubs;
+using backend.DTOs.Notification;
 using backend.Models;
 using backend.Services.Interfaces;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services.Implementations;
@@ -10,26 +9,23 @@ namespace backend.Services.Implementations;
 public class NotificationService : INotificationService
 {
     private readonly AppDbContext _context;
-    private readonly IHubContext<NotificationHub> _hubContext;
 
-    public NotificationService(
-        AppDbContext context,
-        IHubContext<NotificationHub> hubContext)
+    public NotificationService(AppDbContext context)
     {
         _context = context;
-        _hubContext = hubContext;
     }
 
-    public async Task<IEnumerable<Notification>> GetAllAsync(
+    public async Task<IEnumerable<NotificationResponse>> GetAllAsync(
         int userId)
     {
         return await _context.Notifications
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.CreatedAt)
+            .Select(x => MapToResponse(x))
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<Notification>> GetUnreadAsync(
+    public async Task<IEnumerable<NotificationResponse>> GetUnreadAsync(
         int userId)
     {
         return await _context.Notifications
@@ -37,20 +33,26 @@ public class NotificationService : INotificationService
                 x.UserId == userId &&
                 !x.IsRead)
             .OrderByDescending(x => x.CreatedAt)
+            .Select(x => MapToResponse(x))
             .ToListAsync();
     }
 
-    public async Task<Notification?> GetByIdAsync(
+    public async Task<NotificationResponse?> GetByIdAsync(
         int userId,
         int notificationId)
     {
-        return await _context.Notifications
+        var notification = await _context.Notifications
             .FirstOrDefaultAsync(x =>
                 x.Id == notificationId &&
                 x.UserId == userId);
+
+        if (notification == null)
+            return null;
+
+        return MapToResponse(notification);
     }
 
-    public async Task<Notification> CreateAsync(
+    public async Task<NotificationResponse> CreateAsync(
         int userId,
         string title,
         string message,
@@ -66,28 +68,21 @@ public class NotificationService : INotificationService
             CreatedAt = DateTime.UtcNow
         };
 
-        // 1. Lưu notification vào database
         _context.Notifications.Add(notification);
 
         await _context.SaveChangesAsync();
 
-        // 2. Gửi notification realtime đến đúng user
-        await _hubContext.Clients
-            .User(userId.ToString())
-            .SendAsync(
-                "ReceiveNotification",
-                notification);
-
-        return notification;
+        return MapToResponse(notification);
     }
 
     public async Task<bool> MarkAsReadAsync(
         int userId,
         int notificationId)
     {
-        var notification = await GetByIdAsync(
-            userId,
-            notificationId);
+        var notification = await _context.Notifications
+            .FirstOrDefaultAsync(x =>
+                x.Id == notificationId &&
+                x.UserId == userId);
 
         if (notification == null)
             return false;
@@ -122,9 +117,10 @@ public class NotificationService : INotificationService
         int userId,
         int notificationId)
     {
-        var notification = await GetByIdAsync(
-            userId,
-            notificationId);
+        var notification = await _context.Notifications
+            .FirstOrDefaultAsync(x =>
+                x.Id == notificationId &&
+                x.UserId == userId);
 
         if (notification == null)
             return false;
@@ -134,5 +130,19 @@ public class NotificationService : INotificationService
         await _context.SaveChangesAsync();
 
         return true;
+    }
+
+    private static NotificationResponse MapToResponse(
+        Notification notification)
+    {
+        return new NotificationResponse
+        {
+            Id = notification.Id,
+            Title = notification.Title,
+            Message = notification.Message,
+            Type = notification.Type,
+            IsRead = notification.IsRead,
+            CreatedAt = notification.CreatedAt
+        };
     }
 }

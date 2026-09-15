@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.DTOs.Transaction;
 using backend.Models;
 using backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -18,76 +19,139 @@ public class TransactionService : ITransactionService
         _notificationService = notificationService;
     }
 
-    public async Task<IEnumerable<Transaction>> GetAllAsync(
-        int userId)
+    public async Task<IEnumerable<TransactionResponse>> GetAllAsync(int userId)
     {
         return await _context.Transactions
-            .Include(x => x.Account)
-            .Include(x => x.Category)
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.TransactionDate)
+            .ThenByDescending(x => x.CreatedAt)
+            .Select(x => new TransactionResponse
+            {
+                Id = x.Id,
+
+                AccountId = x.AccountId,
+                AccountName = x.Account != null
+                    ? x.Account.Name
+                    : string.Empty,
+
+                CategoryId = x.CategoryId,
+                CategoryName = x.Category != null
+                    ? x.Category.Name
+                    : string.Empty,
+
+                Amount = x.Amount,
+                Type = x.Type,
+                Description = x.Description,
+                TransactionDate = x.TransactionDate,
+                CreatedAt = x.CreatedAt
+            })
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<Transaction>>
-        GetByDateRangeAsync(
-            int userId,
-            DateTime from,
-            DateTime to)
-    {
-        return await _context.Transactions
-            .Include(x => x.Account)
-            .Include(x => x.Category)
-            .Where(x =>
-                x.UserId == userId &&
-                x.TransactionDate >= from &&
-                x.TransactionDate <= to)
-            .OrderByDescending(x => x.TransactionDate)
-            .ToListAsync();
-    }
-
-    public async Task<IEnumerable<Transaction>>
-        GetByTypeAsync(
-            int userId,
-            string type)
-    {
-        return await _context.Transactions
-            .Include(x => x.Account)
-            .Include(x => x.Category)
-            .Where(x =>
-                x.UserId == userId &&
-                x.Type == type)
-            .OrderByDescending(x => x.TransactionDate)
-            .ToListAsync();
-    }
-
-    public async Task<Transaction?> GetByIdAsync(
+    public async Task<TransactionResponse?> GetByIdAsync(
         int userId,
         int transactionId)
     {
         return await _context.Transactions
-            .Include(x => x.Account)
-            .Include(x => x.Category)
-            .FirstOrDefaultAsync(x =>
+            .Where(x =>
                 x.Id == transactionId &&
-                x.UserId == userId);
+                x.UserId == userId)
+            .Select(x => new TransactionResponse
+            {
+                Id = x.Id,
+
+                AccountId = x.AccountId,
+                AccountName = x.Account != null
+                    ? x.Account.Name
+                    : string.Empty,
+
+                CategoryId = x.CategoryId,
+                CategoryName = x.Category != null
+                    ? x.Category.Name
+                    : string.Empty,
+
+                Amount = x.Amount,
+                Type = x.Type,
+                Description = x.Description,
+                TransactionDate = x.TransactionDate,
+                CreatedAt = x.CreatedAt
+            })
+            .FirstOrDefaultAsync();
     }
 
-    public async Task<Transaction?> CreateAsync(
+    public async Task<IEnumerable<TransactionResponse>> GetByAccountAsync(
         int userId,
-        int accountId,
-        int categoryId,
-        decimal amount,
-        string type,
-        string? description,
-        DateTime transactionDate)
+        int accountId)
     {
-        if (amount <= 0)
-            return null;
+        return await _context.Transactions
+            .Where(x =>
+                x.UserId == userId &&
+                x.AccountId == accountId)
+            .OrderByDescending(x => x.TransactionDate)
+            .ThenByDescending(x => x.CreatedAt)
+            .Select(x => new TransactionResponse
+            {
+                Id = x.Id,
 
+                AccountId = x.AccountId,
+                AccountName = x.Account != null
+                    ? x.Account.Name
+                    : string.Empty,
+
+                CategoryId = x.CategoryId,
+                CategoryName = x.Category != null
+                    ? x.Category.Name
+                    : string.Empty,
+
+                Amount = x.Amount,
+                Type = x.Type,
+                Description = x.Description,
+                TransactionDate = x.TransactionDate,
+                CreatedAt = x.CreatedAt
+            })
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<TransactionResponse>> GetByCategoryAsync(
+        int userId,
+        int categoryId)
+    {
+        return await _context.Transactions
+            .Where(x =>
+                x.UserId == userId &&
+                x.CategoryId == categoryId)
+            .OrderByDescending(x => x.TransactionDate)
+            .ThenByDescending(x => x.CreatedAt)
+            .Select(x => new TransactionResponse
+            {
+                Id = x.Id,
+
+                AccountId = x.AccountId,
+                AccountName = x.Account != null
+                    ? x.Account.Name
+                    : string.Empty,
+
+                CategoryId = x.CategoryId,
+                CategoryName = x.Category != null
+                    ? x.Category.Name
+                    : string.Empty,
+
+                Amount = x.Amount,
+                Type = x.Type,
+                Description = x.Description,
+                TransactionDate = x.TransactionDate,
+                CreatedAt = x.CreatedAt
+            })
+            .ToListAsync();
+    }
+
+    public async Task<TransactionResponse?> CreateAsync(
+        int userId,
+        CreateTransactionRequest request)
+    {
         var account = await _context.Accounts
             .FirstOrDefaultAsync(x =>
-                x.Id == accountId &&
+                x.Id == request.AccountId &&
                 x.UserId == userId);
 
         if (account == null)
@@ -95,51 +159,185 @@ public class TransactionService : ITransactionService
 
         var category = await _context.Categories
             .FirstOrDefaultAsync(x =>
-                x.Id == categoryId &&
+                x.Id == request.CategoryId &&
                 x.UserId == userId);
 
         if (category == null)
             return null;
 
-        if (type != "Income" && type != "Expense")
-            return null;
-
-        if (type == "Expense" &&
-            account.Balance < amount)
+        if (request.Type == "Income")
         {
-            return null;
+            account.Balance += request.Amount;
+        }
+        else
+        {
+            account.Balance -= request.Amount;
         }
 
         var transaction = new Transaction
         {
             UserId = userId,
-            AccountId = accountId,
-            CategoryId = categoryId,
-            Amount = amount,
-            Type = type,
-            Description = description,
-            TransactionDate = transactionDate,
+            AccountId = request.AccountId,
+            CategoryId = request.CategoryId,
+            Amount = request.Amount,
+            Type = request.Type,
+            Description = request.Description,
+            TransactionDate = request.TransactionDate,
             CreatedAt = DateTime.UtcNow
         };
-
-        if (type == "Income")
-            account.Balance += amount;
-        else
-            account.Balance -= amount;
 
         _context.Transactions.Add(transaction);
 
         await _context.SaveChangesAsync();
 
-        if (type == "Expense")
+        await CheckBudgetAsync(
+            userId,
+            transaction.CategoryId,
+            transaction.TransactionDate);
+
+        return new TransactionResponse
         {
-            await CheckBudgetAsync(
-                userId,
-                categoryId,
-                transactionDate);
+            Id = transaction.Id,
+
+            AccountId = transaction.AccountId,
+            AccountName = account.Name,
+
+            CategoryId = transaction.CategoryId,
+            CategoryName = category.Name,
+
+            Amount = transaction.Amount,
+            Type = transaction.Type,
+            Description = transaction.Description,
+            TransactionDate = transaction.TransactionDate,
+            CreatedAt = transaction.CreatedAt
+        };
+    }
+
+    public async Task<TransactionResponse?> UpdateAsync(
+        int userId,
+        int transactionId,
+        UpdateTransactionRequest request)
+    {
+        var transaction = await _context.Transactions
+            .FirstOrDefaultAsync(x =>
+                x.Id == transactionId &&
+                x.UserId == userId);
+
+        if (transaction == null)
+            return null;
+
+        var newAccount = await _context.Accounts
+            .FirstOrDefaultAsync(x =>
+                x.Id == request.AccountId &&
+                x.UserId == userId);
+
+        if (newAccount == null)
+            return null;
+
+        var newCategory = await _context.Categories
+            .FirstOrDefaultAsync(x =>
+                x.Id == request.CategoryId &&
+                x.UserId == userId);
+
+        if (newCategory == null)
+            return null;
+
+        var oldAccount = await _context.Accounts
+            .FirstOrDefaultAsync(x =>
+                x.Id == transaction.AccountId &&
+                x.UserId == userId);
+
+        if (oldAccount == null)
+            return null;
+
+        // 1. Reverse old transaction
+        if (transaction.Type == "Income")
+        {
+            oldAccount.Balance -= transaction.Amount;
+        }
+        else
+        {
+            oldAccount.Balance += transaction.Amount;
         }
 
-        return transaction;
+        // 2. Apply new transaction
+        if (request.Type == "Income")
+        {
+            newAccount.Balance += request.Amount;
+        }
+        else
+        {
+            newAccount.Balance -= request.Amount;
+        }
+
+        // 3. Update transaction
+        transaction.AccountId = request.AccountId;
+        transaction.CategoryId = request.CategoryId;
+        transaction.Amount = request.Amount;
+        transaction.Type = request.Type;
+        transaction.Description = request.Description;
+        transaction.TransactionDate = request.TransactionDate;
+
+        await _context.SaveChangesAsync();
+
+        await CheckBudgetAsync(
+            userId,
+            transaction.CategoryId,
+            transaction.TransactionDate);
+
+        return new TransactionResponse
+        {
+            Id = transaction.Id,
+
+            AccountId = transaction.AccountId,
+            AccountName = newAccount.Name,
+
+            CategoryId = transaction.CategoryId,
+            CategoryName = newCategory.Name,
+
+            Amount = transaction.Amount,
+            Type = transaction.Type,
+            Description = transaction.Description,
+            TransactionDate = transaction.TransactionDate,
+            CreatedAt = transaction.CreatedAt
+        };
+    }
+
+    public async Task<bool> DeleteAsync(
+        int userId,
+        int transactionId)
+    {
+        var transaction = await _context.Transactions
+            .FirstOrDefaultAsync(x =>
+                x.Id == transactionId &&
+                x.UserId == userId);
+
+        if (transaction == null)
+            return false;
+
+        var account = await _context.Accounts
+            .FirstOrDefaultAsync(x =>
+                x.Id == transaction.AccountId &&
+                x.UserId == userId);
+
+        if (account == null)
+            return false;
+
+        // Reverse transaction effect
+        if (transaction.Type == "Income")
+        {
+            account.Balance -= transaction.Amount;
+        }
+        else
+        {
+            account.Balance += transaction.Amount;
+        }
+
+        _context.Transactions.Remove(transaction);
+
+        await _context.SaveChangesAsync();
+
+        return true;
     }
 
     private async Task CheckBudgetAsync(
@@ -147,128 +345,50 @@ public class TransactionService : ITransactionService
         int categoryId,
         DateTime transactionDate)
     {
-        var month = transactionDate.Month;
-        var year = transactionDate.Year;
-
         var budget = await _context.Budgets
             .FirstOrDefaultAsync(x =>
                 x.UserId == userId &&
                 x.CategoryId == categoryId &&
-                x.Month == month &&
-                x.Year == year);
+                x.Month == transactionDate.Month &&
+                x.Year == transactionDate.Year);
 
         if (budget == null)
             return;
 
-        var spent = await _context.Transactions
+        var spentAmount = await _context.Transactions
             .Where(x =>
                 x.UserId == userId &&
                 x.CategoryId == categoryId &&
                 x.Type == "Expense" &&
-                x.TransactionDate.Month == month &&
-                x.TransactionDate.Year == year)
-            .SumAsync(x => x.Amount);
+                x.TransactionDate.Month == transactionDate.Month &&
+                x.TransactionDate.Year == transactionDate.Year)
+            .SumAsync(x => (decimal?)x.Amount) ?? 0;
 
-        if (spent > budget.Amount)
-        {
-            await _notificationService.CreateAsync(
-                userId,
-                "Budget exceeded",
-                $"You have exceeded your budget for {month}/{year}.",
-                "BudgetExceeded");
-        }
-        else if (spent >= budget.Amount * 0.8m)
-        {
-            await _notificationService.CreateAsync(
-                userId,
-                "Budget warning",
-                $"You have used 80% or more of your budget for {month}/{year}.",
-                "BudgetWarning");
-        }
-    }
-
-    public async Task<Transaction?> UpdateAsync(
-        int userId,
-        int transactionId,
-        int accountId,
-        int categoryId,
-        decimal amount,
-        string type,
-        string? description,
-        DateTime transactionDate)
-    {
-        var transaction = await GetByIdAsync(
-            userId,
-            transactionId);
-
-        if (transaction == null || amount <= 0)
-            return null;
-
-        var account = await _context.Accounts
-            .FirstOrDefaultAsync(x =>
-                x.Id == accountId &&
-                x.UserId == userId);
+        if (spentAmount <= budget.Amount)
+            return;
 
         var category = await _context.Categories
             .FirstOrDefaultAsync(x =>
                 x.Id == categoryId &&
                 x.UserId == userId);
 
-        if (account == null || category == null)
-            return null;
+        var categoryName = category?.Name ?? "category";
 
-        // Roll back old transaction
-        if (transaction.Type == "Income")
-            transaction.Account!.Balance -= transaction.Amount;
-        else
-            transaction.Account!.Balance += transaction.Amount;
+        var existingNotification = await _context.Notifications
+            .AnyAsync(x =>
+                x.UserId == userId &&
+                x.Type == "BudgetExceeded" &&
+                x.Message.Contains(categoryName) &&
+                x.CreatedAt.Month == transactionDate.Month &&
+                x.CreatedAt.Year == transactionDate.Year);
 
-        if (type == "Expense" &&
-            account.Balance < amount)
-        {
-            return null;
-        }
+        if (existingNotification)
+            return;
 
-        // Apply new transaction
-        if (type == "Income")
-            account.Balance += amount;
-        else if (type == "Expense")
-            account.Balance -= amount;
-        else
-            return null;
-
-        transaction.AccountId = accountId;
-        transaction.CategoryId = categoryId;
-        transaction.Amount = amount;
-        transaction.Type = type;
-        transaction.Description = description;
-        transaction.TransactionDate = transactionDate;
-
-        await _context.SaveChangesAsync();
-
-        return transaction;
-    }
-
-    public async Task<bool> DeleteAsync(
-        int userId,
-        int transactionId)
-    {
-        var transaction = await GetByIdAsync(
+        await _notificationService.CreateAsync(
             userId,
-            transactionId);
-
-        if (transaction == null)
-            return false;
-
-        if (transaction.Type == "Income")
-            transaction.Account!.Balance -= transaction.Amount;
-        else
-            transaction.Account!.Balance += transaction.Amount;
-
-        _context.Transactions.Remove(transaction);
-
-        await _context.SaveChangesAsync();
-
-        return true;
+            "Budget exceeded",
+            $"Your budget for {categoryName} has been exceeded.",
+            "BudgetExceeded");
     }
 }

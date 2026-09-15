@@ -1,18 +1,14 @@
-using backend.Models;
+using backend.DTOs.User;
 
 namespace backend.Services.Interfaces;
 
 public interface IUserService
 {
-    Task<User?> GetByIdAsync(int userId);
+    Task<UserResponse?> GetByIdAsync(int userId);
 
-    Task<User?> UpdateProfileAsync(
+    Task<UserResponse?> UpdateAsync(
         int userId,
-        string fullName,
-        string email);
+        UpdateUserRequest request);
 
-    Task<bool> ChangePasswordAsync(
-        int userId,
-        string currentPassword,
-        string newPassword);
+    Task<bool> DeleteAsync(int userId);
 }

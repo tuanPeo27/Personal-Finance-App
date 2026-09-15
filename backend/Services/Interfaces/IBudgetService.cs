@@ -1,39 +1,30 @@
-using backend.Models;
+using backend.DTOs.Budget;
 
 namespace backend.Services.Interfaces;
 
 public interface IBudgetService
 {
-    Task<IEnumerable<Budget>> GetAllAsync(int userId);
+    Task<IEnumerable<BudgetResponse>> GetAllAsync(int userId);
 
-    Task<IEnumerable<Budget>> GetByMonthAsync(
-        int userId,
-        int month,
-        int year);
-
-    Task<Budget?> GetByIdAsync(
+    Task<BudgetResponse?> GetByIdAsync(
         int userId,
         int budgetId);
 
-    Task<Budget?> CreateAsync(
+    Task<IEnumerable<BudgetResponse>> GetByMonthAsync(
         int userId,
-        int categoryId,
-        decimal amount,
         int month,
         int year);
 
-    Task<Budget?> UpdateAsync(
+    Task<BudgetResponse?> CreateAsync(
+        int userId,
+        CreateBudgetRequest request);
+
+    Task<BudgetResponse?> UpdateAsync(
         int userId,
         int budgetId,
-        decimal amount);
+        UpdateBudgetRequest request);
 
     Task<bool> DeleteAsync(
         int userId,
         int budgetId);
-
-    Task<decimal> GetSpentAmountAsync(
-        int userId,
-        int categoryId,
-        int month,
-        int year);
 }

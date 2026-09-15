@@ -1,3 +1,4 @@
+using backend.DTOs.FinancialGoal;
 using backend.Extensions;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -10,12 +11,12 @@ namespace backend.Controllers;
 [Authorize]
 public class FinancialGoalsController : ControllerBase
 {
-    private readonly IFinancialGoalService _goalService;
+    private readonly IFinancialGoalService _financialGoalService;
 
     public FinancialGoalsController(
-        IFinancialGoalService goalService)
+        IFinancialGoalService financialGoalService)
     {
-        _goalService = goalService;
+        _financialGoalService = financialGoalService;
     }
 
     [HttpGet]
@@ -24,7 +25,7 @@ public class FinancialGoalsController : ControllerBase
         var userId = User.GetUserId();
 
         return Ok(
-            await _goalService.GetAllAsync(userId));
+            await _financialGoalService.GetAllAsync(userId));
     }
 
     [HttpGet("{id}")]
@@ -32,9 +33,10 @@ public class FinancialGoalsController : ControllerBase
     {
         var userId = User.GetUserId();
 
-        var goal = await _goalService.GetByIdAsync(
-            userId,
-            id);
+        var goal =
+            await _financialGoalService.GetByIdAsync(
+                userId,
+                id);
 
         if (goal == null)
             return NotFound();
@@ -44,61 +46,75 @@ public class FinancialGoalsController : ControllerBase
 
     [HttpPost]
     public async Task<IActionResult> Create(
-        string name,
-        decimal targetAmount,
-        DateTime? deadline)
+        CreateFinancialGoalRequest request)
     {
         var userId = User.GetUserId();
 
-        var goal = await _goalService.CreateAsync(
-            userId,
-            name,
-            targetAmount,
-            deadline);
+        try
+        {
+            var goal =
+                await _financialGoalService.CreateAsync(
+                    userId,
+                    request);
 
-        return Ok(goal);
+            return Ok(goal);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(
         int id,
-        string name,
-        decimal targetAmount,
-        DateTime? deadline)
+        UpdateFinancialGoalRequest request)
     {
         var userId = User.GetUserId();
 
-        var goal = await _goalService.UpdateAsync(
-            userId,
-            id,
-            name,
-            targetAmount,
-            deadline);
+        try
+        {
+            var goal =
+                await _financialGoalService.UpdateAsync(
+                    userId,
+                    id,
+                    request);
 
-        if (goal == null)
-            return NotFound();
+            if (goal == null)
+                return NotFound();
 
-        return Ok(goal);
+            return Ok(goal);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPut("{id}/progress")]
     public async Task<IActionResult> UpdateProgress(
         int id,
-        decimal currentAmount)
+        UpdateGoalProgressRequest request)
     {
         var userId = User.GetUserId();
 
-        var goal =
-            await _goalService.UpdateProgressAsync(
-                userId,
-                id,
-                currentAmount);
+        try
+        {
+            var goal =
+                await _financialGoalService.UpdateProgressAsync(
+                    userId,
+                    id,
+                    request);
 
-        if (goal == null)
-            return BadRequest(
-                "Invalid goal or amount.");
+            if (goal == null)
+                return NotFound();
 
-        return Ok(goal);
+            return Ok(goal);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpDelete("{id}")]
@@ -106,9 +122,10 @@ public class FinancialGoalsController : ControllerBase
     {
         var userId = User.GetUserId();
 
-        var result = await _goalService.DeleteAsync(
-            userId,
-            id);
+        var result =
+            await _financialGoalService.DeleteAsync(
+                userId,
+                id);
 
         if (!result)
             return NotFound();

@@ -1,18 +1,20 @@
-using backend.Models;
+using backend.DTOs.Notification;
 
 namespace backend.Services.Interfaces;
 
 public interface INotificationService
 {
-    Task<IEnumerable<Notification>> GetAllAsync(int userId);
+    Task<IEnumerable<NotificationResponse>> GetAllAsync(
+        int userId);
 
-    Task<IEnumerable<Notification>> GetUnreadAsync(int userId);
+    Task<IEnumerable<NotificationResponse>> GetUnreadAsync(
+        int userId);
 
-    Task<Notification?> GetByIdAsync(
+    Task<NotificationResponse?> GetByIdAsync(
         int userId,
         int notificationId);
 
-    Task<Notification> CreateAsync(
+    Task<NotificationResponse> CreateAsync(
         int userId,
         string title,
         string message,
@@ -22,7 +24,8 @@ public interface INotificationService
         int userId,
         int notificationId);
 
-    Task<bool> MarkAllAsReadAsync(int userId);
+    Task<bool> MarkAllAsReadAsync(
+        int userId);
 
     Task<bool> DeleteAsync(
         int userId,

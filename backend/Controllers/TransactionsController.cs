@@ -1,3 +1,4 @@
+using backend.DTOs.Transaction;
 using backend.Extensions;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -12,8 +13,7 @@ public class TransactionsController : ControllerBase
 {
     private readonly ITransactionService _transactionService;
 
-    public TransactionsController(
-        ITransactionService transactionService)
+    public TransactionsController(ITransactionService transactionService)
     {
         _transactionService = transactionService;
     }
@@ -23,8 +23,7 @@ public class TransactionsController : ControllerBase
     {
         var userId = User.GetUserId();
 
-        return Ok(
-            await _transactionService.GetAllAsync(userId));
+        return Ok(await _transactionService.GetAllAsync(userId));
     }
 
     [HttpGet("{id}")]
@@ -32,10 +31,8 @@ public class TransactionsController : ControllerBase
     {
         var userId = User.GetUserId();
 
-        var transaction =
-            await _transactionService.GetByIdAsync(
-                userId,
-                id);
+        var transaction = await _transactionService
+            .GetByIdAsync(userId, id);
 
         if (transaction == null)
             return NotFound();
@@ -43,56 +40,35 @@ public class TransactionsController : ControllerBase
         return Ok(transaction);
     }
 
-    [HttpGet("type/{type}")]
-    public async Task<IActionResult> GetByType(
-        string type)
+    [HttpGet("account/{accountId}")]
+    public async Task<IActionResult> GetByAccount(int accountId)
     {
         var userId = User.GetUserId();
 
-        return Ok(
-            await _transactionService.GetByTypeAsync(
-                userId,
-                type));
+        return Ok(await _transactionService
+            .GetByAccountAsync(userId, accountId));
     }
 
-    [HttpGet("date-range")]
-    public async Task<IActionResult> GetByDateRange(
-        DateTime from,
-        DateTime to)
+    [HttpGet("category/{categoryId}")]
+    public async Task<IActionResult> GetByCategory(int categoryId)
     {
         var userId = User.GetUserId();
 
-        return Ok(
-            await _transactionService.GetByDateRangeAsync(
-                userId,
-                from,
-                to));
+        return Ok(await _transactionService
+            .GetByCategoryAsync(userId, categoryId));
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(
-        int accountId,
-        int categoryId,
-        decimal amount,
-        string type,
-        string? description,
-        DateTime transactionDate)
+    public async Task<IActionResult> Create(CreateTransactionRequest request)
     {
         var userId = User.GetUserId();
 
-        var transaction =
-            await _transactionService.CreateAsync(
-                userId,
-                accountId,
-                categoryId,
-                amount,
-                type,
-                description,
-                transactionDate);
+        var transaction = await _transactionService
+            .CreateAsync(userId, request);
 
         if (transaction == null)
             return BadRequest(
-                "Invalid transaction.");
+                "Account or category does not exist or does not belong to user.");
 
         return Ok(transaction);
     }
@@ -100,29 +76,16 @@ public class TransactionsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(
         int id,
-        int accountId,
-        int categoryId,
-        decimal amount,
-        string type,
-        string? description,
-        DateTime transactionDate)
+        UpdateTransactionRequest request)
     {
         var userId = User.GetUserId();
 
-        var transaction =
-            await _transactionService.UpdateAsync(
-                userId,
-                id,
-                accountId,
-                categoryId,
-                amount,
-                type,
-                description,
-                transactionDate);
+        var transaction = await _transactionService
+            .UpdateAsync(userId, id, request);
 
         if (transaction == null)
             return BadRequest(
-                "Invalid transaction.");
+                "Transaction, account, or category does not exist or does not belong to user.");
 
         return Ok(transaction);
     }
@@ -132,10 +95,8 @@ public class TransactionsController : ControllerBase
     {
         var userId = User.GetUserId();
 
-        var result =
-            await _transactionService.DeleteAsync(
-                userId,
-                id);
+        var result = await _transactionService
+            .DeleteAsync(userId, id);
 
         if (!result)
             return NotFound();

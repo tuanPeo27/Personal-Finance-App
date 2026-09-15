@@ -14,6 +14,8 @@ public class Budget
     public int Month { get; set; }
 
     public int Year { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
 
     // Navigation
     public User? User { get; set; }

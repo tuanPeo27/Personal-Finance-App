@@ -1,31 +1,27 @@
-using backend.Models;
+using backend.DTOs.Category;
 
 namespace backend.Services.Interfaces;
 
 public interface ICategoryService
 {
-    Task<IEnumerable<Category>> GetAllAsync(int userId);
+    Task<IEnumerable<CategoryResponse>> GetAllAsync(int userId);
 
-    Task<IEnumerable<Category>> GetByTypeAsync(
-        int userId,
-        string type);
-
-    Task<Category?> GetByIdAsync(
+    Task<CategoryResponse?> GetByIdAsync(
         int userId,
         int categoryId);
 
-    Task<Category> CreateAsync(
+    Task<IEnumerable<CategoryResponse>> GetByTypeAsync(
         int userId,
-        string name,
-        string type,
-        string? icon);
+        string type);
 
-    Task<Category?> UpdateAsync(
+    Task<CategoryResponse> CreateAsync(
+        int userId,
+        CreateCategoryRequest request);
+
+    Task<CategoryResponse?> UpdateAsync(
         int userId,
         int categoryId,
-        string name,
-        string type,
-        string? icon);
+        UpdateCategoryRequest request);
 
     Task<bool> DeleteAsync(
         int userId,

@@ -1,5 +1,5 @@
 using backend.Data;
-using backend.Models;
+using backend.DTOs.User;
 using backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,45 +14,54 @@ public class UserService : IUserService
         _context = context;
     }
 
-    public async Task<User?> GetByIdAsync(int userId)
+    public async Task<UserResponse?> GetByIdAsync(int userId)
     {
         return await _context.Users
-            .FirstOrDefaultAsync(x => x.Id == userId);
+            .Where(x => x.Id == userId)
+            .Select(x => new UserResponse
+            {
+                Id = x.Id,
+                FullName = x.FullName,
+                Email = x.Email,
+                CreatedAt = x.CreatedAt
+            })
+            .FirstOrDefaultAsync();
     }
 
-    public async Task<User?> UpdateProfileAsync(
+    public async Task<UserResponse?> UpdateAsync(
         int userId,
-        string fullName,
-        string email)
+        UpdateUserRequest request)
     {
         var user = await _context.Users
             .FirstOrDefaultAsync(x => x.Id == userId);
 
         if (user == null)
             return null;
-
-        email = email.Trim().ToLower();
 
         var emailExists = await _context.Users
             .AnyAsync(x =>
-                x.Email == email &&
+                x.Email == request.Email &&
                 x.Id != userId);
 
         if (emailExists)
-            return null;
+            throw new InvalidOperationException(
+                "Email is already in use.");
 
-        user.FullName = fullName;
-        user.Email = email;
+        user.FullName = request.FullName;
+        user.Email = request.Email;
 
         await _context.SaveChangesAsync();
 
-        return user;
+        return new UserResponse
+        {
+            Id = user.Id,
+            FullName = user.FullName,
+            Email = user.Email,
+            CreatedAt = user.CreatedAt
+        };
     }
 
-    public async Task<bool> ChangePasswordAsync(
-        int userId,
-        string currentPassword,
-        string newPassword)
+    public async Task<bool> DeleteAsync(int userId)
     {
         var user = await _context.Users
             .FirstOrDefaultAsync(x => x.Id == userId);
@@ -60,15 +69,7 @@ public class UserService : IUserService
         if (user == null)
             return false;
 
-        if (!BCrypt.Net.BCrypt.Verify(
-                currentPassword,
-                user.PasswordHash))
-        {
-            return false;
-        }
-
-        user.PasswordHash =
-            BCrypt.Net.BCrypt.HashPassword(newPassword);
+        _context.Users.Remove(user);
 
         await _context.SaveChangesAsync();
 

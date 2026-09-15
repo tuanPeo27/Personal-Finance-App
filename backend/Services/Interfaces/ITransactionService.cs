@@ -1,42 +1,31 @@
-using backend.Models;
+using backend.DTOs.Transaction;
 
 namespace backend.Services.Interfaces;
 
 public interface ITransactionService
 {
-    Task<IEnumerable<Transaction>> GetAllAsync(int userId);
+    Task<IEnumerable<TransactionResponse>> GetAllAsync(int userId);
 
-    Task<IEnumerable<Transaction>> GetByDateRangeAsync(
-        int userId,
-        DateTime from,
-        DateTime to);
-
-    Task<IEnumerable<Transaction>> GetByTypeAsync(
-        int userId,
-        string type);
-
-    Task<Transaction?> GetByIdAsync(
+    Task<TransactionResponse?> GetByIdAsync(
         int userId,
         int transactionId);
 
-    Task<Transaction?> CreateAsync(
+    Task<IEnumerable<TransactionResponse>> GetByAccountAsync(
         int userId,
-        int accountId,
-        int categoryId,
-        decimal amount,
-        string type,
-        string? description,
-        DateTime transactionDate);
+        int accountId);
 
-    Task<Transaction?> UpdateAsync(
+    Task<IEnumerable<TransactionResponse>> GetByCategoryAsync(
+        int userId,
+        int categoryId);
+
+    Task<TransactionResponse?> CreateAsync(
+        int userId,
+        CreateTransactionRequest request);
+
+    Task<TransactionResponse?> UpdateAsync(
         int userId,
         int transactionId,
-        int accountId,
-        int categoryId,
-        decimal amount,
-        string type,
-        string? description,
-        DateTime transactionDate);
+        UpdateTransactionRequest request);
 
     Task<bool> DeleteAsync(
         int userId,
