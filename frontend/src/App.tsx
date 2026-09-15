@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
 import Dashboard from "./pages/Dashboard";
@@ -27,10 +27,47 @@ export type Page =
 
 export type ToastType = { id: number; message: string; type: "success" | "error" | "warning" };
 
+const pagePaths: Record<Page, string> = {
+  login: "/login",
+  register: "/register",
+  dashboard: "/dashboard",
+  accounts: "/accounts",
+  transactions: "/transactions",
+  categories: "/categories",
+  budgets: "/budgets",
+  goals: "/goals",
+  profile: "/profile",
+  notifications: "/notifications",
+};
+
+const pathPages = Object.entries(pagePaths).reduce<Record<string, Page>>((pages, [page, path]) => {
+  pages[path] = page as Page;
+  return pages;
+}, {});
+
+const getInitialPage = (): Page => {
+  const pathPage = pathPages[window.location.pathname];
+  return pathPage && (pathPage === "login" || pathPage === "register" || localStorage.getItem("finance_token"))
+    ? pathPage
+    : "login";
+};
+
 export default function App() {
-  const [page, setPage] = useState<Page>("login");
+  const [page, setPage] = useState<Page>(getInitialPage);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastType[]>([]);
+
+  useEffect(() => {
+    const handlePopState = () => setPage(getInitialPage());
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const navigate = (nextPage: Page) => {
+    setPage(nextPage);
+    const nextPath = pagePaths[nextPage];
+    if (window.location.pathname !== nextPath) window.history.pushState({}, "", nextPath);
+  };
 
   const addToast = (message: string, type: ToastType["type"] = "success") => {
     const id = Date.now();
@@ -44,22 +81,22 @@ export default function App() {
     <div className="min-h-screen bg-[#faf8ff]">
       {!isAuth ? (
         <>
-          {page === "login" && <Login goTo={setPage} toast={addToast} />}
-          {page === "register" && <Register goTo={setPage} toast={addToast} />}
+          {page === "login" && <Login goTo={navigate} toast={addToast} />}
+          {page === "register" && <Register goTo={navigate} toast={addToast} />}
         </>
       ) : (
         <div className="flex min-h-screen">
-          <Sidebar page={page} setPage={setPage} open={sidebarOpen} setOpen={setSidebarOpen} />
+          <Sidebar page={page} setPage={navigate} open={sidebarOpen} setOpen={setSidebarOpen} />
           <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
-            <TopBar page={page} setSidebarOpen={setSidebarOpen} setPage={setPage} />
+            <TopBar page={page} setSidebarOpen={setSidebarOpen} setPage={navigate} />
             <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-              {page === "dashboard" && <Dashboard setPage={setPage} toast={addToast} />}
+              {page === "dashboard" && <Dashboard setPage={navigate} toast={addToast} />}
               {page === "accounts" && <Accounts toast={addToast} />}
               {page === "transactions" && <Transactions toast={addToast} />}
               {page === "categories" && <Categories toast={addToast} />}
               {page === "budgets" && <Budgets toast={addToast} />}
               {page === "goals" && <Goals toast={addToast} />}
-              {page === "profile" && <Profile toast={addToast} setPage={setPage} />}
+              {page === "profile" && <Profile toast={addToast} setPage={navigate} />}
               {page === "notifications" && <Notifications toast={addToast} />}
             </main>
           </div>

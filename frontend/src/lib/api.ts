@@ -224,16 +224,18 @@ export const normalizeBudget = (
 
   category:
     budget.category?.name ??
+    budget.categoryName ??
     "Không phân loại",
 
   icon:
     budget.category?.icon ??
+    budget.categoryIcon ??
     "💰",
 
   amount:
     Number(budget.amount),
 
-  spent,
+  spent: Number(budget.spentAmount ?? spent),
 
   month:
     budget.month,
@@ -661,13 +663,6 @@ export const api = {
         )
     );
   },
-
-  budgetSpent: (
-    id: number
-  ) =>
-    get<{ spent: number }>(
-      `/budgets/${id}/spent`
-    ),
 
   createBudget: (
     data: Record<

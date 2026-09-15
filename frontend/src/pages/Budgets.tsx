@@ -16,9 +16,8 @@ export default function Budgets({ toast }: Props) {
   const [form, setForm] = useState({ categoryId: "", category: "", icon: "🍜", amount: "", month: new Date().getMonth() + 1, year: new Date().getFullYear() });
 
   useEffect(() => {
-    Promise.all([api.budgets(), api.categories()]).then(async ([budgets, loadedCategories]) => {
-      const withSpent = await Promise.all(budgets.map(async budget => ({ ...budget, spent: (await api.budgetSpent(budget.id)).spent })));
-      setList(withSpent); setCategories(loadedCategories);
+    Promise.all([api.budgets(), api.categories()]).then(([budgets, loadedCategories]) => {
+      setList(budgets); setCategories(loadedCategories);
     }).catch(error => toast(error.message, "error"));
   }, []);
 
