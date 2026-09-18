@@ -163,7 +163,14 @@ builder.Services.AddAuthorization();
 // =====================================================
 
 var app = builder.Build();
+//SEED DATA
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider
+        .GetRequiredService<AppDbContext>();
 
+    await DbSeeder.SeedAsync(context);
+}
 
 // =====================================================
 // MIDDLEWARE PIPELINE
