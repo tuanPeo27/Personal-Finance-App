@@ -9,10 +9,14 @@ namespace backend.Services.Implementations;
 public class FinancialGoalService : IFinancialGoalService
 {
     private readonly AppDbContext _context;
+    private readonly INotificationService _notificationService;
 
-    public FinancialGoalService(AppDbContext context)
+    public FinancialGoalService(
+        AppDbContext context,
+        INotificationService notificationService)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<IEnumerable<FinancialGoalResponse>> GetAllAsync(
@@ -68,6 +72,15 @@ public class FinancialGoalService : IFinancialGoalService
 
         await _context.SaveChangesAsync();
 
+        if (goal.Status == "Completed")
+        {
+            await _notificationService.CreateAsync(
+                userId,
+                "Mục tiêu đã hoàn thành",
+                $"Chúc mừng! Bạn đã hoàn thành mục tiêu \"{goal.Name}\".",
+                "FinancialGoalCompleted");
+        }
+
         return MapToResponse(goal);
     }
 
@@ -94,12 +107,23 @@ public class FinancialGoalService : IFinancialGoalService
         goal.TargetAmount = request.TargetAmount;
         goal.Deadline = request.Deadline;
 
+        var wasCompleted = goal.Status == "Completed";
+
         if (goal.CurrentAmount >= goal.TargetAmount)
             goal.Status = "Completed";
         else if (goal.Status == "Completed")
             goal.Status = "Active";
 
         await _context.SaveChangesAsync();
+
+        if (!wasCompleted && goal.Status == "Completed")
+        {
+            await _notificationService.CreateAsync(
+                userId,
+                "Mục tiêu đã hoàn thành",
+                $"Chúc mừng! Bạn đã hoàn thành mục tiêu \"{goal.Name}\".",
+                "FinancialGoalCompleted");
+        }
 
         return MapToResponse(goal);
     }
@@ -123,6 +147,7 @@ public class FinancialGoalService : IFinancialGoalService
                 "Current amount cannot be greater than target amount.");
         }
 
+        var wasCompleted = goal.Status == "Completed";
         goal.CurrentAmount = request.CurrentAmount;
 
         if (goal.CurrentAmount >= goal.TargetAmount)
@@ -131,6 +156,15 @@ public class FinancialGoalService : IFinancialGoalService
             goal.Status = "Active";
 
         await _context.SaveChangesAsync();
+
+        if (!wasCompleted && goal.Status == "Completed")
+        {
+            await _notificationService.CreateAsync(
+                userId,
+                "Mục tiêu đã hoàn thành",
+                $"Chúc mừng! Bạn đã hoàn thành mục tiêu \"{goal.Name}\".",
+                "FinancialGoalCompleted");
+        }
 
         return MapToResponse(goal);
     }

@@ -3,16 +3,22 @@ using backend.DTOs.Notification;
 using backend.Models;
 using backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using backend.Hubs;
 
 namespace backend.Services.Implementations;
 
 public class NotificationService : INotificationService
 {
     private readonly AppDbContext _context;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
-    public NotificationService(AppDbContext context)
+    public NotificationService(
+        AppDbContext context,
+        IHubContext<NotificationHub> hubContext)
     {
         _context = context;
+        _hubContext = hubContext;
     }
 
     public async Task<IEnumerable<NotificationResponse>> GetAllAsync(
@@ -72,7 +78,13 @@ public class NotificationService : INotificationService
 
         await _context.SaveChangesAsync();
 
-        return MapToResponse(notification);
+        var response = MapToResponse(notification);
+
+        await _hubContext.Clients
+            .User(userId.ToString())
+            .SendAsync("NotificationCreated", response);
+
+        return response;
     }
 
     public async Task<bool> MarkAsReadAsync(

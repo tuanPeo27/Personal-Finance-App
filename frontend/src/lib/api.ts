@@ -1,6 +1,6 @@
 import axios, { type AxiosRequestConfig } from "axios";
 
-const API_URL =
+export const API_URL =
   import.meta.env.VITE_API_URL ?? "http://localhost:5207/api";
 
 // =====================================================
@@ -64,6 +64,18 @@ export type Dashboard = {
   totalIncome: number;
   totalExpense: number;
   net: number;
+};
+
+export type DashboardExpenseCategory = {
+  categoryId: number;
+  categoryName: string;
+  amount: number;
+};
+
+export type DashboardMonthlyStatistic = {
+  month: number;
+  type: "Income" | "Expense";
+  amount: number;
 };
 
 export type AuthResponse = {
@@ -183,6 +195,7 @@ export const normalizeTransaction = (
     transaction.description ?? "",
 
   category:
+    transaction.categoryName ??
     transaction.category?.name ??
     "Không phân loại",
 
@@ -194,6 +207,7 @@ export const normalizeTransaction = (
     "💰",
 
   account:
+    transaction.accountName ??
     transaction.account?.name ??
     "Không xác định",
 
@@ -466,6 +480,19 @@ export const api = {
         month,
         year,
       })}`
+    ),
+
+  dashboardExpenseByCategory: (
+    month: number,
+    year: number
+  ) =>
+    get<DashboardExpenseCategory[]>(
+      `/dashboard/expense-by-category?${query({ month, year })}`
+    ),
+
+  dashboardMonthlyStatistics: (year: number) =>
+    get<DashboardMonthlyStatistic[]>(
+      `/dashboard/monthly-statistics?${query({ year })}`
     ),
 
   // ===================================================

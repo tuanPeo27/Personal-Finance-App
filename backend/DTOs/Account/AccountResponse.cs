@@ -10,5 +10,7 @@ public class AccountResponse
 
     public decimal Balance { get; set; }
 
+    public int TransactionCount { get; set; }
+
     public DateTime CreatedAt { get; set; }
 }

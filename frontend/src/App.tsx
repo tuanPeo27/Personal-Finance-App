@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
 import Dashboard from "./pages/Dashboard";
@@ -12,6 +13,7 @@ import Notifications from "./pages/Notifications";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Toast from "./components/Toast";
+import { API_URL, api, type Notification } from "./lib/api";
 
 export type Page =
   | "login"
@@ -56,12 +58,57 @@ export default function App() {
   const [page, setPage] = useState<Page>(getInitialPage);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastType[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const isAuth = page !== "login" && page !== "register";
 
   useEffect(() => {
     const handlePopState = () => setPage(getInitialPage());
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  useEffect(() => {
+    if (!isAuth) {
+      setNotifications([]);
+      return;
+    }
+
+    let active = true;
+    const token = localStorage.getItem("finance_token");
+    if (!token) return;
+
+    void api.notifications().then((items) => {
+      if (active) {
+        setNotifications((current) => [
+          ...items,
+          ...current.filter((item) => !items.some((loaded) => loaded.id === item.id)),
+        ]);
+      }
+    }).catch(() => undefined);
+
+    const hubUrl = `${API_URL.replace(/\/api\/?$/, "")}/hubs/notifications`;
+    const connection = new HubConnectionBuilder()
+      .withUrl(hubUrl, { accessTokenFactory: () => localStorage.getItem("finance_token") ?? "" })
+      .withAutomaticReconnect()
+      .configureLogging(LogLevel.Warning)
+      .build();
+
+    connection.on("NotificationCreated", (notification: Notification) => {
+      if (!active) return;
+      setNotifications((items) => items.some((item) => item.id === notification.id)
+        ? items
+        : [notification, ...items]);
+      addToast(notification.message, "success");
+    });
+
+    void connection.start().catch(() => undefined);
+
+    return () => {
+      active = false;
+      connection.off("NotificationCreated");
+      void connection.stop();
+    };
+  }, [isAuth]);
 
   const navigate = (nextPage: Page) => {
     setPage(nextPage);
@@ -75,8 +122,6 @@ export default function App() {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
   };
 
-  const isAuth = page !== "login" && page !== "register";
-
   return (
     <div className="min-h-screen bg-[#faf8ff]">
       {!isAuth ? (
@@ -88,7 +133,7 @@ export default function App() {
         <div className="flex min-h-screen">
           <Sidebar page={page} setPage={navigate} open={sidebarOpen} setOpen={setSidebarOpen} />
           <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
-            <TopBar page={page} setSidebarOpen={setSidebarOpen} setPage={navigate} />
+            <TopBar page={page} setSidebarOpen={setSidebarOpen} setPage={navigate} unreadCount={notifications.filter((item) => !item.isRead).length} />
             <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto">
               {page === "dashboard" && <Dashboard setPage={navigate} toast={addToast} />}
               {page === "accounts" && <Accounts toast={addToast} />}
@@ -97,7 +142,7 @@ export default function App() {
               {page === "budgets" && <Budgets toast={addToast} />}
               {page === "goals" && <Goals toast={addToast} />}
               {page === "profile" && <Profile toast={addToast} setPage={navigate} />}
-              {page === "notifications" && <Notifications toast={addToast} />}
+              {page === "notifications" && <Notifications toast={addToast} notifications={notifications} setNotifications={setNotifications} />}
             </main>
           </div>
         </div>

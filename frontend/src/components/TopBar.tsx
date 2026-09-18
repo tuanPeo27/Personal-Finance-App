@@ -16,9 +16,10 @@ interface Props {
   page: Page;
   setSidebarOpen: (v: boolean) => void;
   setPage: (p: Page) => void;
+  unreadCount: number;
 }
 
-export default function TopBar({ page, setSidebarOpen, setPage }: Props) {
+export default function TopBar({ page, setSidebarOpen, setPage, unreadCount }: Props) {
   const user = getStoredUser();
   const initials = user?.fullName?.trim().split(/\s+/).map((name) => name[0]).slice(-2).join("").toUpperCase() || "U";
   return (
@@ -38,7 +39,7 @@ export default function TopBar({ page, setSidebarOpen, setPage }: Props) {
       <div className="flex items-center gap-2">
         <button onClick={() => setPage("notifications")} aria-label="Mở thông báo" className="w-9 h-9 rounded-xl bg-[#faf8ff] flex items-center justify-center text-[#6b7280] hover:bg-[#ede9fb] transition-colors relative">
           🔔
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#f87171]" />
+          {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#f87171]" />}
         </button>
         <button
           onClick={() => setPage("profile")}

@@ -26,7 +26,8 @@ public class CategoryService : ICategoryService
                 Id = x.Id,
                 Name = x.Name,
                 Type = x.Type,
-                Icon = x.Icon
+                Icon = x.Icon,
+                TransactionCount = x.Transactions.Count()
             })
             .ToListAsync();
     }
@@ -44,7 +45,8 @@ public class CategoryService : ICategoryService
                 Id = x.Id,
                 Name = x.Name,
                 Type = x.Type,
-                Icon = x.Icon
+                Icon = x.Icon,
+                TransactionCount = x.Transactions.Count()
             })
             .FirstOrDefaultAsync();
     }
@@ -63,7 +65,8 @@ public class CategoryService : ICategoryService
                 Id = x.Id,
                 Name = x.Name,
                 Type = x.Type,
-                Icon = x.Icon
+                Icon = x.Icon,
+                TransactionCount = x.Transactions.Count()
             })
             .ToListAsync();
     }
@@ -88,7 +91,8 @@ public class CategoryService : ICategoryService
             Id = category.Id,
             Name = category.Name,
             Type = category.Type,
-            Icon = category.Icon
+            Icon = category.Icon,
+            TransactionCount = 0
         };
     }
 
@@ -110,13 +114,16 @@ public class CategoryService : ICategoryService
         category.Icon = request.Icon;
 
         await _context.SaveChangesAsync();
+        var transactionCount = await _context.Transactions
+            .CountAsync(x => x.CategoryId == category.Id && x.UserId == userId);
 
         return new CategoryResponse
         {
             Id = category.Id,
             Name = category.Name,
             Type = category.Type,
-            Icon = category.Icon
+            Icon = category.Icon,
+            TransactionCount = transactionCount
         };
     }
 

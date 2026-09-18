@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { type Dispatch, type SetStateAction } from "react";
 import { api, type Notification } from "../lib/api";
 
 interface Props {
   toast: (msg: string, t?: "success" | "error" | "warning") => void;
+  notifications: Notification[];
+  setNotifications: Dispatch<SetStateAction<Notification[]>>;
 }
 
 const formatDate = (value: string) =>
@@ -11,23 +13,7 @@ const formatDate = (value: string) =>
     timeStyle: "short",
   }).format(new Date(value));
 
-export default function Notifications({ toast }: Props) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadNotifications = async () => {
-    try {
-      setNotifications(await api.notifications());
-    } catch (error) {
-      toast(error instanceof Error ? error.message : "Không thể tải thông báo!", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadNotifications();
-  }, []);
+export default function Notifications({ toast, notifications, setNotifications }: Props) {
 
   const markAsRead = async (notification: Notification) => {
     if (notification.isRead) return;
@@ -82,11 +68,7 @@ export default function Notifications({ toast }: Props) {
         )}
       </div>
 
-      {loading ? (
-        <div className="bg-white rounded-2xl p-8 text-center text-sm text-[#6b7280] border border-[#e8e4f5]">
-          Đang tải thông báo...
-        </div>
-      ) : notifications.length === 0 ? (
+      {notifications.length === 0 ? (
         <div className="bg-white rounded-2xl p-10 text-center border border-[#e8e4f5]">
           <div className="text-4xl mb-3">🔔</div>
           <p className="font-700 text-[#1e1b4b]">Chưa có thông báo</p>
