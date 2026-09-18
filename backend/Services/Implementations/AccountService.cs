@@ -28,6 +28,7 @@ public class AccountService : IAccountService
                 Name = x.Name,
                 Type = x.Type,
                 Balance = x.Balance,
+                TransactionCount = x.Transactions.Count(),
                 CreatedAt = x.CreatedAt
             })
             .ToListAsync();
@@ -48,6 +49,7 @@ public class AccountService : IAccountService
                 Name = x.Name,
                 Type = x.Type,
                 Balance = x.Balance,
+                TransactionCount = x.Transactions.Count(),
                 CreatedAt = x.CreatedAt
             })
             .FirstOrDefaultAsync();
@@ -77,6 +79,7 @@ public class AccountService : IAccountService
             Name = account.Name,
             Type = account.Type,
             Balance = account.Balance,
+            TransactionCount = 0,
             CreatedAt = account.CreatedAt
         };
     }
@@ -99,6 +102,8 @@ public class AccountService : IAccountService
         account.Type = request.Type;
 
         await _context.SaveChangesAsync();
+        var transactionCount = await _context.Transactions
+            .CountAsync(x => x.AccountId == account.Id && x.UserId == userId);
 
         return new AccountResponse
         {
@@ -106,6 +111,7 @@ public class AccountService : IAccountService
             Name = account.Name,
             Type = account.Type,
             Balance = account.Balance,
+            TransactionCount = transactionCount,
             CreatedAt = account.CreatedAt
         };
     }
