@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace backend.Controllers;
 
 [ApiController]
-[Route("api/notifications")]
+[Route("api/[controller]")]
 [Authorize]
 public class NotificationsController : ControllerBase
 {

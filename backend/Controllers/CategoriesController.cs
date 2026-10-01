@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace backend.Controllers;
 
 [ApiController]
-[Route("api/categories")]
+[Route("api/[controller]")]
 [Authorize]
 public class CategoriesController : ControllerBase
 {
