@@ -31,7 +31,13 @@ export default function Budgets({ toast }: Props) {
     const dup = list.find(b => b.categoryId === Number(form.categoryId) && b.month === form.month && b.year === form.year && b.id !== editItem?.id);
     if (dup) { toast("Đã có ngân sách cho danh mục này tháng này!", "error"); return; }
     try {
-      if (editItem) await api.updateBudget(editItem.id, Number(form.amount));
+      if (editItem) {
+        await api.updateBudget(editItem.id, {
+          amount: Number(form.amount),
+          month: form.month,
+          year: form.year,
+        });
+      }
       else await api.createBudget({ categoryId: Number(form.categoryId), amount: Number(form.amount), month: form.month, year: form.year });
       setList(await api.budgets());
       toast(editItem ? "Cập nhật ngân sách thành công!" : "Đã tạo ngân sách mới! 📊");
@@ -70,7 +76,7 @@ export default function Budgets({ toast }: Props) {
       )}
 
       <div className="flex items-center justify-between">
-        <h3 className="font-display font-800 text-base text-[#1e1b4b]">Tháng 9, 2026</h3>
+        <h3 className="font-display font-800 text-base text-[#1e1b4b]">Ngân sách</h3>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#7c6fcd] to-[#5a4fb5] text-white text-sm font-700 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all">
           + Thêm ngân sách
         </button>

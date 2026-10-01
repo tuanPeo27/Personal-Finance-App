@@ -143,7 +143,22 @@ public class BudgetService : IBudgetService
         if (budget == null)
             return null;
 
+        var duplicate = await _context.Budgets.AnyAsync(x =>
+            x.UserId == userId &&
+            x.Id != budgetId &&
+            x.CategoryId == budget.CategoryId &&
+            x.Month == request.Month &&
+            x.Year == request.Year);
+
+        if (duplicate)
+        {
+            throw new InvalidOperationException(
+                "A budget already exists for this category and month.");
+        }
+
         budget.Amount = request.Amount;
+        budget.Month = request.Month;
+        budget.Year = request.Year;
 
         await _context.SaveChangesAsync();
 
@@ -178,9 +193,7 @@ public class BudgetService : IBudgetService
             .Where(x =>
                 x.UserId == budget.UserId &&
                 x.CategoryId == budget.CategoryId &&
-                x.Type == "Expense" &&
-                x.TransactionDate.Month == budget.Month &&
-                x.TransactionDate.Year == budget.Year)
+                x.Type == "Expense")
             .SumAsync(x => (decimal?)x.Amount) ?? 0;
 
         var remainingAmount =

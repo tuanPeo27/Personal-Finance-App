@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace backend.Controllers;
 
 [ApiController]
-[Route("api/budgets")]
+[Route("api/[controller]")]
 [Authorize]
 public class BudgetsController : ControllerBase
 {
@@ -88,15 +88,22 @@ public class BudgetsController : ControllerBase
     {
         var userId = User.GetUserId();
 
-        var budget = await _budgetService.UpdateAsync(
-            userId,
-            id,
-            request);
+        try
+        {
+            var budget = await _budgetService.UpdateAsync(
+                userId,
+                id,
+                request);
 
-        if (budget == null)
-            return NotFound();
+            if (budget == null)
+                return NotFound();
 
-        return Ok(budget);
+            return Ok(budget);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
     }
 
     [HttpDelete("{id}")]

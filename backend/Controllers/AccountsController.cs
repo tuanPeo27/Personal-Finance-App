@@ -9,11 +9,11 @@ namespace backend.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class AccountController : ControllerBase
+public class AccountsController : ControllerBase
 {
     private readonly IAccountService _accountService;
 
-    public AccountController(
+    public AccountsController(
         IAccountService accountService)
     {
         _accountService = accountService;

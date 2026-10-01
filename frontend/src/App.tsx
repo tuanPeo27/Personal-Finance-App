@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
@@ -61,6 +61,12 @@ export default function App() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const isAuth = page !== "login" && page !== "register";
 
+  const addToast = useCallback((message: string, type: ToastType["type"] = "success") => {
+    const id = Date.now();
+    setToasts((t) => [...t, { id, message, type }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
+  }, []);
+
   useEffect(() => {
     const handlePopState = () => setPage(getInitialPage());
     window.addEventListener("popstate", handlePopState);
@@ -77,6 +83,15 @@ export default function App() {
     const token = localStorage.getItem("finance_token");
     if (!token) return;
 
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1] || ""));
+      if (!payload || typeof payload.exp !== "number" || Date.now() >= payload.exp * 1000) {
+        return;
+      }
+    } catch {
+      return;
+    }
+
     void api.notifications().then((items) => {
       if (active) {
         setNotifications((current) => [
@@ -88,8 +103,10 @@ export default function App() {
 
     const hubUrl = `${API_URL.replace(/\/api\/?$/, "")}/hubs/notifications`;
     const connection = new HubConnectionBuilder()
-      .withUrl(hubUrl, { accessTokenFactory: () => localStorage.getItem("finance_token") ?? "" })
-      .withAutomaticReconnect()
+      .withUrl(hubUrl, {
+        accessTokenFactory: () => localStorage.getItem("finance_token") ?? "",
+      })
+      .withAutomaticReconnect([0, 2000, 5000, 10000])
       .configureLogging(LogLevel.Warning)
       .build();
 
@@ -101,6 +118,12 @@ export default function App() {
       addToast(notification.message, "success");
     });
 
+    connection.onclose(() => {
+      if (active) {
+        setNotifications((items) => items);
+      }
+    });
+
     void connection.start().catch(() => undefined);
 
     return () => {
@@ -108,18 +131,12 @@ export default function App() {
       connection.off("NotificationCreated");
       void connection.stop();
     };
-  }, [isAuth]);
+  }, [isAuth, addToast]);
 
   const navigate = (nextPage: Page) => {
     setPage(nextPage);
     const nextPath = pagePaths[nextPage];
     if (window.location.pathname !== nextPath) window.history.pushState({}, "", nextPath);
-  };
-
-  const addToast = (message: string, type: ToastType["type"] = "success") => {
-    const id = Date.now();
-    setToasts((t) => [...t, { id, message, type }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
   };
 
   return (

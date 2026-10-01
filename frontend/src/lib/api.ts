@@ -503,7 +503,7 @@ export const api = {
 
     const data =
       await get<any[]>(
-        "/account"
+        "/accounts"
       );
 
     return data.map(
@@ -517,7 +517,7 @@ export const api = {
     balance: number
   ) =>
     post<any>(
-      "/account",
+      "/accounts",
       {
         name,
         type,
@@ -531,7 +531,7 @@ export const api = {
     type: string
   ) =>
     put<any>(
-      `/account/${id}`,
+      `/accounts/${id}`,
       {
         name,
         type,
@@ -542,7 +542,7 @@ export const api = {
     id: number
   ) =>
     remove(
-      `/account/${id}`
+      `/accounts/${id}`
     ),
 
   // ===================================================
@@ -704,13 +704,15 @@ export const api = {
 
   updateBudget: (
     id: number,
-    amount: number
+    data: {
+      amount: number;
+      month: number;
+      year: number;
+    }
   ) =>
     put<any>(
       `/budgets/${id}`,
-      {
-        amount,
-      }
+      data
     ),
 
   deleteBudget: (
@@ -728,7 +730,7 @@ export const api = {
 
     const data =
       await get<any[]>(
-        "/financial-goals"
+        "/goals"
       );
 
     return data.map(
@@ -742,7 +744,7 @@ export const api = {
     deadline: string
   ) =>
     post<any>(
-      "/financial-goals",
+      "/goals",
       {
         name,
         targetAmount,
@@ -757,7 +759,7 @@ export const api = {
     deadline: string
   ) =>
     put<any>(
-      `/financial-goals/${id}`,
+      `/goals/${id}`,
       {
         name,
         targetAmount,
@@ -770,7 +772,7 @@ export const api = {
     currentAmount: number
   ) =>
     put<any>(
-      `/financial-goals/${id}/progress`,
+      `/goals/${id}/progress`,
       {
         currentAmount,
       }
@@ -780,7 +782,7 @@ export const api = {
     id: number
   ) =>
     remove(
-      `/financial-goals/${id}`
+      `/goals/${id}`
     ),
 };
 
