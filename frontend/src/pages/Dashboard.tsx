@@ -42,7 +42,9 @@ export default function Dashboard({ setPage, toast }: Props) {
   const greeting = hour < 12 ? "Chào buổi sáng" : hour < 18 ? "Chào buổi chiều" : "Chào buổi tối";
 
   useEffect(() => {
-    Promise.all([
+    let active = true;
+
+    Promise.allSettled([
       api.dashboard(month, year),
       api.dashboardExpenseByCategory(month, year),
       api.dashboardMonthlyStatistics(year),
@@ -50,16 +52,31 @@ export default function Dashboard({ setPage, toast }: Props) {
       api.budgets(),
       api.goals(),
     ])
-      .then(([loadedSummary, loadedCategories, loadedStatistics, loadedTransactions, loadedBudgets, loadedGoals]) => {
-        setSummary(loadedSummary);
-        setExpenseCategories(loadedCategories);
-        setMonthlyStatistics(loadedStatistics);
-        setTransactions(loadedTransactions);
-        setBudgets(loadedBudgets);
-        setGoals(loadedGoals);
+      .then(([summaryResult, categoriesResult, statisticsResult, transactionsResult, budgetsResult, goalsResult]) => {
+        if (!active) return;
+
+        if (summaryResult.status === "fulfilled") setSummary(summaryResult.value);
+        if (categoriesResult.status === "fulfilled") setExpenseCategories(categoriesResult.value);
+        if (statisticsResult.status === "fulfilled") setMonthlyStatistics(statisticsResult.value);
+        if (transactionsResult.status === "fulfilled") setTransactions(transactionsResult.value);
+        if (budgetsResult.status === "fulfilled") setBudgets(budgetsResult.value);
+        if (goalsResult.status === "fulfilled") setGoals(goalsResult.value);
+
+        const firstError = [summaryResult, categoriesResult, statisticsResult, transactionsResult, budgetsResult, goalsResult]
+          .find((result) => result.status === "rejected");
+
+        if (firstError?.status === "rejected") {
+          const message = firstError.reason instanceof Error ? firstError.reason.message : "Không thể tải dữ liệu tổng quan!";
+          toast(message, "error");
+        }
       })
-      .catch((error) => toast(error instanceof Error ? error.message : "Không thể tải dữ liệu tổng quan!", "error"))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [month, year, toast]);
 
   if (loading) {

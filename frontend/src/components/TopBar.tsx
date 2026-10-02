@@ -22,6 +22,7 @@ interface Props {
 export default function TopBar({ page, setSidebarOpen, setPage, unreadCount }: Props) {
   const user = getStoredUser();
   const initials = user?.fullName?.trim().split(/\s+/).map((name) => name[0]).slice(-2).join("").toUpperCase() || "U";
+  const currentDate = new Date();
   return (
     <header className="bg-white border-b border-[#e8e4f5] px-4 md:px-6 lg:px-8 py-3.5 flex items-center gap-4 sticky top-0 z-30">
       <button
@@ -33,7 +34,7 @@ export default function TopBar({ page, setSidebarOpen, setPage, unreadCount }: P
 
       <div className="flex-1">
         <h1 className="font-display font-800 text-lg text-[#1e1b4b]">{pageNames[page]}</h1>
-        <p className="text-xs text-[#6b7280]">Tháng 9, 2026</p>
+        <p className="text-xs text-[#6b7280]">Tháng {currentDate.getMonth() + 1}, {currentDate.getFullYear()}</p>
       </div>
 
       <div className="flex items-center gap-2">

@@ -7,13 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace backend.Controllers;
 
 [ApiController]
-[Route("api/financial-goals")]
+[Route("api/[controller]")]
 [Authorize]
-public class FinancialGoalsController : ControllerBase
+public class GoalsController : ControllerBase
 {
     private readonly IFinancialGoalService _financialGoalService;
 
-    public FinancialGoalsController(
+    public GoalsController(
         IFinancialGoalService financialGoalService)
     {
         _financialGoalService = financialGoalService;
