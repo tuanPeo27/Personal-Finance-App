@@ -45,16 +45,30 @@ builder.Services.AddSwaggerGen(options =>
 // DATABASE
 // =====================================================
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options =>{
     options.UseSqlServer(
         builder.Configuration.GetConnectionString(
             "DefaultConnection"
         )
-    )
-);
+    );
+    if (builder.Environment.IsDevelopment())
+    {
+        options.LogTo(Console.WriteLine, LogLevel.Information);
+        options.EnableDetailedErrors();
+    }
+});
 
 builder.Services.Configure<JwtOptions>(
     builder.Configuration.GetSection("Jwt"));
+
+var jwtKey = builder.Configuration["Jwt:Key"];
+
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "JWT Key must be configured and contain at least 32 characters."
+    );
+}
 // =====================================================
 // APPLICATION SERVICES
 // =====================================================
@@ -96,7 +110,7 @@ builder.Services.AddCors(options =>
 // JWT AUTHENTICATION
 // =====================================================
 
-var jwtKey = builder.Configuration["Jwt:Key"];
+jwtKey = builder.Configuration["Jwt:Key"];
 
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
