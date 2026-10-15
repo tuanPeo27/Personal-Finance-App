@@ -1,12 +1,14 @@
 using System.Text;
 using backend.Data;
 using backend.Hubs;
+using backend.Middleware;
 using backend.Services.Implementations;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using backend.Options;
+
 using Microsoft.OpenApi;
 var builder = WebApplication.CreateBuilder(args);
 
@@ -175,6 +177,8 @@ using (var scope = app.Services.CreateScope())
 // =====================================================
 // MIDDLEWARE PIPELINE
 // =====================================================
+
+app.UseMiddleware<RequestTimingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
