@@ -103,7 +103,7 @@ builder.Services.AddCors(options =>
 // JWT AUTHENTICATION
 // =====================================================
 
-var jwtKey = builder.Configuration["Jwt:Key"];
+jwtKey = builder.Configuration["Jwt:Key"];
 
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
