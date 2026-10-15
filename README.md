@@ -1101,7 +1101,129 @@ https://localhost:<PORT>/health
 ```
 
 ---
+🐳 Quy trình chạy bằng Docker & Docker Compose
 
+Nếu máy đã cài Docker Desktop, thành viên mới không cần cài SQL Server hoặc .NET SDK để chạy backend. Docker Compose sẽ tự động tạo SQL Server và container backend.
+
+🧪 Chạy project từ đầu bằng Docker Compose
+
+Nếu một thành viên mới clone project, thực hiện:
+
+# 1. Clone project
+git clone <YOUR_GITHUB_REPOSITORY_URL>
+
+# 2. Vào thư mục project
+cd Personal-Finance-App
+
+# 3. Build và khởi động toàn bộ hệ thống
+docker compose up --build
+
+Docker Compose sẽ tự động:
+
+✓ Build backend Docker image
+✓ Tạo container SQL Server
+✓ Tạo container Backend API
+✓ Tạo Docker volume lưu dữ liệu SQL Server
+✓ Chờ SQL Server sẵn sàng
+✓ Kết nối Backend với SQL Server
+✓ Chạy Database Migration
+✓ Seed dữ liệu mẫu
+🌐 Truy cập Backend API
+
+Sau khi Docker Compose chạy thành công, mở Swagger:
+
+http://localhost:5207/swagger
+
+Health Check:
+
+http://localhost:5207/health
+🔐 Tài khoản test
+
+Có thể sử dụng các tài khoản được tạo sẵn bởi DbSeeder:
+
+Admin:
+Email: admin@gmail.com
+Password: Admin@123
+
+User:
+Email: user@gmail.com
+Password: User@123
+
+Nếu project sử dụng username thay vì email để đăng nhập, sử dụng đúng trường đăng nhập được khai báo trong API.
+
+🗄️ Kiểm tra Database
+
+SQL Server chạy bên trong Docker container và dữ liệu được lưu trong Docker Volume.
+
+Thông tin kết nối từ máy host:
+
+Server: localhost,1434
+Database: PersonalFinanceDb
+User: sa
+Password: Abc12345@Aa
+
+Có thể sử dụng SQL Server Management Studio (SSMS) để xem:
+
+Databases
+└── PersonalFinanceDb
+    └── Tables
+        ├── Users
+        ├── Accounts
+        ├── Categories
+        ├── Transactions
+        └── Budgets
+🔄 Dừng project
+
+Để dừng các container:
+
+docker compose down
+
+Dữ liệu database vẫn được giữ lại vì SQL Server sử dụng Docker Volume.
+
+▶️ Chạy lại project
+
+Sau khi đã build lần đầu:
+
+docker compose up
+
+Nếu cần build lại backend sau khi thay đổi code:
+
+docker compose up --build
+🗑️ Reset toàn bộ Database
+
+Nếu muốn xóa database hiện tại và tạo lại từ đầu:
+
+docker compose down -v
+docker compose up --build
+
+⚠️ docker compose down -v sẽ xóa Docker Volume, đồng nghĩa với việc toàn bộ dữ liệu database hiện tại sẽ bị xóa. Sau đó DbSeeder sẽ tạo lại dữ liệu mẫu.
+
+✅ Project chạy thành công khi
+✓ docker compose up --build  → Containers started
+✓ SQL Server                 → Healthy
+✓ Backend                    → Started
+✓ Database                   → Connected
+✓ Migration                  → Completed
+✓ Seed data                  → Created
+✓ /swagger                  → Hiển thị API
+✓ /health                   → Healthy
+📌 Yêu cầu môi trường
+
+Thành viên mới chỉ cần:
+
+✓ Git
+✓ Docker Desktop
+
+Không bắt buộc cài trực tiếp:
+
+✗ SQL Server
+✗ SQL Server Management Studio (nếu chỉ chạy/test API)
+✗ .NET SDK
+✗ NuGet packages
+✗ Entity Framework CLI
+
+Docker Compose sẽ đảm nhiệm việc tạo và kết nối các service cần thiết cho project.
+---
 ## 👨‍💻 Tác giả
 
 <div align="center">
