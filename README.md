@@ -750,7 +750,7 @@ HTTP Request
 ExceptionMiddleware
      │
      ▼
-RequestLoggingMiddleware
+RequestTimingMiddleware
      │
      ▼
 HTTPS
@@ -781,7 +781,7 @@ HTTP Response
 
 Xử lý các Exception chưa được xử lý và trả về response lỗi.
 
-### RequestLoggingMiddleware
+### RequestTimingMiddleware
 
 Ghi log:
 
