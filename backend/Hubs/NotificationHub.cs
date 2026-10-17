@@ -1,3 +1,4 @@
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
@@ -6,10 +7,21 @@ namespace backend.Hubs;
 [Authorize]
 public class NotificationHub : Hub
 {
+    private readonly ILogger<NotificationHub> _logger;
+
+    public NotificationHub(ILogger<NotificationHub> logger)
+    {
+        _logger = logger;
+    }
+
     public override async Task OnConnectedAsync()
     {
-        Console.WriteLine(
-            $"User connected: {Context.UserIdentifier}");
+        _logger.LogInformation(
+            "SignalR connected | UserId: {UserId} | ConnectionId: {ConnectionId} | Time: {Time}",
+            Context.UserIdentifier ?? "Unknown",
+            Context.ConnectionId,
+            DateTime.UtcNow
+        );
 
         await base.OnConnectedAsync();
     }
@@ -17,8 +29,13 @@ public class NotificationHub : Hub
     public override async Task OnDisconnectedAsync(
         Exception? exception)
     {
-        Console.WriteLine(
-            $"User disconnected: {Context.UserIdentifier}");
+        _logger.LogInformation(
+            exception,
+            "SignalR disconnected | UserId: {UserId} | ConnectionId: {ConnectionId} | Time: {Time}",
+            Context.UserIdentifier ?? "Unknown",
+            Context.ConnectionId,
+            DateTime.UtcNow
+        );
 
         await base.OnDisconnectedAsync(exception);
     }
