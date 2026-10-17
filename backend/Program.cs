@@ -10,6 +10,13 @@ using Microsoft.IdentityModel.Tokens;
 using backend.Options;
 
 using Microsoft.OpenApi;
+
+DotNetEnv.Env.Load(
+    Path.GetFullPath(
+        Path.Combine(Directory.GetCurrentDirectory(), "..", ".env")
+    )
+);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // =====================================================
@@ -18,8 +25,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Controllers
 builder.Services.AddControllers();
+
 // Health Checks
-builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>(); ;
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -45,16 +53,32 @@ builder.Services.AddSwaggerGen(options =>
 // DATABASE
 // =====================================================
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options =>{
     options.UseSqlServer(
         builder.Configuration.GetConnectionString(
             "DefaultConnection"
         )
-    )
-);
+    );
+    if (builder.Environment.IsDevelopment())
+    {
+        options.LogTo(Console.WriteLine, LogLevel.Information);
+        options.EnableDetailedErrors();
+    }
+});
 
 builder.Services.Configure<JwtOptions>(
     builder.Configuration.GetSection("Jwt"));
+
+var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "JWT Key must be configured and contain at least 32 characters."
+    );
+}
+// Cho phép JwtService đọc khóa qua IConfiguration
+builder.Configuration["Jwt:Key"] = jwtKey;
 // =====================================================
 // APPLICATION SERVICES
 // =====================================================
@@ -95,15 +119,6 @@ builder.Services.AddCors(options =>
 // =====================================================
 // JWT AUTHENTICATION
 // =====================================================
-
-var jwtKey = builder.Configuration["Jwt:Key"];
-
-if (string.IsNullOrWhiteSpace(jwtKey))
-{
-    throw new InvalidOperationException(
-        "JWT Key is missing in appsettings.json."
-    );
-}
 
 builder.Services
     .AddAuthentication(
@@ -158,14 +173,13 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-
-
 // =====================================================
 // BUILD APPLICATION
 // =====================================================
 
 var app = builder.Build();
-//SEED DATA
+
+// SEED DATA
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider
@@ -187,7 +201,10 @@ if (app.Environment.IsDevelopment())
 }
 
 // HTTPS
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // CORS
 app.UseCors("ReactPolicy");
@@ -198,10 +215,10 @@ app.UseAuthentication();
 // Authorization
 app.UseAuthorization();
 
-
 // =====================================================
 // ENDPOINTS
 // =====================================================
+
 // Health Check
 app.MapHealthChecks("/health");
 
@@ -212,6 +229,5 @@ app.MapControllers();
 app.MapHub<NotificationHub>(
     "/hubs/notifications"
 );
-
 
 app.Run();
