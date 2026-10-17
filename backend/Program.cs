@@ -1,12 +1,14 @@
 using System.Text;
 using backend.Data;
 using backend.Hubs;
+using backend.Middleware;
 using backend.Services.Implementations;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using backend.Options;
+
 using Microsoft.OpenApi;
 
 DotNetEnv.Env.Load(
@@ -51,13 +53,18 @@ builder.Services.AddSwaggerGen(options =>
 // DATABASE
 // =====================================================
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options =>{
     options.UseSqlServer(
         builder.Configuration.GetConnectionString(
             "DefaultConnection"
         )
-    )
-);
+    );
+    if (builder.Environment.IsDevelopment())
+    {
+        options.LogTo(Console.WriteLine, LogLevel.Information);
+        options.EnableDetailedErrors();
+    }
+});
 
 builder.Services.Configure<JwtOptions>(
     builder.Configuration.GetSection("Jwt"));
@@ -184,6 +191,8 @@ using (var scope = app.Services.CreateScope())
 // =====================================================
 // MIDDLEWARE PIPELINE
 // =====================================================
+
+app.UseMiddleware<RequestTimingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
