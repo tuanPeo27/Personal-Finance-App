@@ -11,11 +11,17 @@ using backend.Options;
 
 using Microsoft.OpenApi;
 
-DotNetEnv.Env.Load(
-    Path.GetFullPath(
-        Path.Combine(Directory.GetCurrentDirectory(), "..", ".env")
-    )
-);
+if (!string.Equals(
+        Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+        "Testing",
+        StringComparison.OrdinalIgnoreCase))
+{
+    DotNetEnv.Env.Load(
+        Path.GetFullPath(
+            Path.Combine(Directory.GetCurrentDirectory(), "..", ".env")
+        )
+    );
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -180,10 +186,10 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 // SEED DATA
-using (var scope = app.Services.CreateScope())
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    var context = scope.ServiceProvider
-        .GetRequiredService<AppDbContext>();
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
     await DbSeeder.SeedAsync(context);
 }
@@ -231,3 +237,5 @@ app.MapHub<NotificationHub>(
 );
 
 app.Run();
+
+public partial class Program { }
