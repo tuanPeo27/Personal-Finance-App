@@ -30,6 +30,10 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore ./FinanceApp.Tests/FinanceApp.Tests.csproj
 
+      # 3. Kiểm tra định dạng mã nguồn
+      - name: Check code formatting
+        run: dotnet format ./backend/backend.csproj --verify-no-changes --no-restore
+
       # 4. Build Backend
       - name: Build Backend
         run: dotnet build ./backend/backend.csproj --configuration Release --no-restore
