@@ -22,32 +22,32 @@ public static class DbSeeder
         }
 
         // ================================
-// 3. PASSWORD HASHER
-// ================================
+        // 3. PASSWORD HASHER
+        // ================================
 
-// ================================
-// 4. TEST USERS
-// ================================
+        // ================================
+        // 4. TEST USERS
+        // ================================
 
-    var admin = new User
-    {
-        FullName = "Admin User",
-        Email = "admin@gmail.com",
-        PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
-        CreatedAt = DateTime.UtcNow
-    };
+        var admin = new User
+        {
+            FullName = "Admin User",
+            Email = "admin@gmail.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
+            CreatedAt = DateTime.UtcNow
+        };
 
-    var user = new User
-    {
-        FullName = "Test User",
-        Email = "user@gmail.com",
-        PasswordHash = BCrypt.Net.BCrypt.HashPassword("User@123"),
-        CreatedAt = DateTime.UtcNow
-    };
+        var user = new User
+        {
+            FullName = "Test User",
+            Email = "user@gmail.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("User@123"),
+            CreatedAt = DateTime.UtcNow
+        };
 
-    context.Users.AddRange(admin, user);
+        context.Users.AddRange(admin, user);
 
-await context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         // ================================
         // 5. CATEGORIES
         // ================================
