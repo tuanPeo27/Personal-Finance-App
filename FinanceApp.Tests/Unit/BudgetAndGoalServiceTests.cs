@@ -12,22 +12,41 @@ namespace FinanceApp.Tests.Unit;
 
 public class BudgetAndGoalServiceTests
 {
+
     [Fact]
     public async Task Budget_response_calculates_spend_remaining_and_percentage()
     {
         await using var context = CreateContext();
-        var category = new Category { UserId = 1, Name = "Food", Type = "Expense" };
-        context.Add(category);
+
+        var category = new Category
+        {
+            UserId = 1,
+            Name = "Food",
+            Type = "Expense"
+        };
+
+        var otherCategory = new Category
+        {
+            UserId = 1,
+            Name = "Shopping",
+            Type = "Expense"
+        };
+
+        context.AddRange(category, otherCategory);
         await context.SaveChangesAsync();
+
+        // Ngân sách tháng 10/2026
+        context.Add(new Budget
+        {
+            UserId = 1,
+            CategoryId = category.Id,
+            Amount = 500m,
+            Month = 10,
+            Year = 2026
+        });
+
         context.AddRange(
-            new Budget
-            {
-                UserId = 1,
-                CategoryId = category.Id,
-                Amount = 500m,
-                Month = 10,
-                Year = 2026
-            },
+            // Expense đúng tháng/năm: PHẢI được tính
             new Transaction
             {
                 UserId = 1,
@@ -35,17 +54,88 @@ public class BudgetAndGoalServiceTests
                 Amount = 125m,
                 Type = "Expense",
                 TransactionDate = new DateTime(2026, 10, 2)
-            });
+            },
+
+            // Expense ngày cuối tháng: PHẢI được tính
+            new Transaction
+            {
+                UserId = 1,
+                CategoryId = category.Id,
+                Amount = 25m,
+                Type = "Expense",
+                TransactionDate = new DateTime(2026, 10, 31, 23, 59, 59)
+            },
+
+            // Expense khác tháng: KHÔNG được tính
+            new Transaction
+            {
+                UserId = 1,
+                CategoryId = category.Id,
+                Amount = 200m,
+                Type = "Expense",
+                TransactionDate = new DateTime(2026, 9, 15)
+            },
+
+            // Expense tháng tiếp theo: KHÔNG được tính
+            new Transaction
+            {
+                UserId = 1,
+                CategoryId = category.Id,
+                Amount = 300m,
+                Type = "Expense",
+                TransactionDate = new DateTime(2026, 11, 1)
+            },
+
+            // Expense khác năm: KHÔNG được tính
+            new Transaction
+            {
+                UserId = 1,
+                CategoryId = category.Id,
+                Amount = 400m,
+                Type = "Expense",
+                TransactionDate = new DateTime(2025, 10, 10)
+            },
+
+            // Income cùng tháng: KHÔNG được tính
+            new Transaction
+            {
+                UserId = 1,
+                CategoryId = category.Id,
+                Amount = 500m,
+                Type = "Income",
+                TransactionDate = new DateTime(2026, 10, 12)
+            },
+
+            // Expense khác Category: KHÔNG được tính
+            new Transaction
+            {
+                UserId = 1,
+                CategoryId = otherCategory.Id,
+                Amount = 600m,
+                Type = "Expense",
+                TransactionDate = new DateTime(2026, 10, 15)
+            }
+        );
+
         await context.SaveChangesAsync();
+
         var service = new BudgetService(context);
 
-        var budget = Assert.Single(await service.GetByMonthAsync(1, 10, 2026));
+        var budget = Assert.Single(
+            await service.GetByMonthAsync(1, 10, 2026));
 
-        Assert.Equal(125m, budget.SpentAmount);
-        Assert.Equal(375m, budget.RemainingAmount);
-        Assert.Equal(25d, budget.PercentageUsed);
+        // Chỉ tính 125 + 25 = 150
+        Assert.Equal(150m, budget.SpentAmount);
+
+        // 500 - 150 = 350
+        Assert.Equal(350m, budget.RemainingAmount);
+
+        // 150 / 500 * 100 = 30%
+        Assert.Equal(30d, budget.PercentageUsed);
+
         Assert.False(budget.IsExceeded);
     }
+
 
     [Fact]
     public async Task Goal_progress_updates_status_and_notifies_once_on_completion()
