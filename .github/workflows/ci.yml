@@ -1,0 +1,39 @@
+
+name: Personal Finance App CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev/**
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    name: Build and Test Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Lấy mã nguồn từ GitHub
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      # 2. Cài đặt .NET 10 SDK
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # 3. Khôi phục thư viện
+      - name: Restore dependencies
+        run: dotnet restore ./FinanceApp.Tests/FinanceApp.Tests.csproj
+
+      # 4. Build Backend
+      - name: Build Backend
+        run: dotnet build ./backend/backend.csproj --configuration Release --no-restore
+
+      # 5. Chạy Unit Test
+      - name: Run Unit Tests
+        run: dotnet test ./FinanceApp.Tests/FinanceApp.Tests.csproj --configuration Release --no-restore
