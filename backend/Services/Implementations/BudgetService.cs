@@ -1,3 +1,4 @@
+
 using backend.Data;
 using backend.DTOs.Budget;
 using backend.Models;
@@ -120,7 +121,6 @@ public class BudgetService : IBudgetService
 
         await _context.SaveChangesAsync();
 
-        // Load Category để trả CategoryName
         await _context.Entry(budget)
             .Reference(x => x.Category)
             .LoadAsync();
@@ -189,20 +189,36 @@ public class BudgetService : IBudgetService
     private async Task<BudgetResponse> MapToResponseAsync(
         Budget budget)
     {
+        // Xác định khoảng thời gian của ngân sách
+        var startDate = new DateTime(
+            budget.Year,
+            budget.Month,
+            1);
+
+        var endDate = startDate.AddMonths(1);
+
+        // Chỉ tính giao dịch Expense thuộc:
+        // - Đúng User
+        // - Đúng Category
+        // - Đúng tháng và năm của Budget
         var spentAmount = await _context.Transactions
             .Where(x =>
                 x.UserId == budget.UserId &&
                 x.CategoryId == budget.CategoryId &&
-                x.Type == "Expense")
-            .SumAsync(x => (decimal?)x.Amount) ?? 0;
+                x.Type == "Expense" &&
+                x.TransactionDate >= startDate &&
+                x.TransactionDate < endDate)
+            .SumAsync(x => (decimal?)x.Amount) ?? 0m;
 
+        // Số tiền ngân sách còn lại
         var remainingAmount =
             budget.Amount - spentAmount;
 
+        // Phần trăm ngân sách đã sử dụng
         var percentageUsed =
             budget.Amount > 0
-                ? (double)(spentAmount / budget.Amount) * 100
-                : 0;
+                ? (double)(spentAmount / budget.Amount * 100m)
+                : 0d;
 
         return new BudgetResponse
         {

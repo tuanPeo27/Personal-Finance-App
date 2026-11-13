@@ -11,11 +11,22 @@ using backend.Options;
 
 using Microsoft.OpenApi;
 
-DotNetEnv.Env.Load(
-    Path.GetFullPath(
-        Path.Combine(Directory.GetCurrentDirectory(), "..", ".env")
-    )
-);
+var envFilePath = new[]
+{
+    Path.Combine(Directory.GetCurrentDirectory(), ".env"),
+    Path.Combine(Directory.GetCurrentDirectory(), "..", ".env")
+}
+.Select(Path.GetFullPath)
+.FirstOrDefault(File.Exists);
+
+if (envFilePath is not null &&
+    !string.Equals(
+        Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+        "Testing",
+        StringComparison.OrdinalIgnoreCase))
+{
+    DotNetEnv.Env.Load(envFilePath);
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,11 +64,35 @@ builder.Services.AddSwaggerGen(options =>
 // DATABASE
 // =====================================================
 
-builder.Services.AddDbContext<AppDbContext>(options =>{
-    options.UseSqlServer(
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    var connectionString =
         builder.Configuration.GetConnectionString(
-            "DefaultConnection"
-        )
+            "DefaultConnection");
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        var mssqlPassword =
+            Environment.GetEnvironmentVariable(
+                "MSSQL_SA_PASSWORD");
+
+        if (string.IsNullOrWhiteSpace(mssqlPassword))
+        {
+            throw new InvalidOperationException(
+                "MSSQL_SA_PASSWORD must be configured when " +
+                "ConnectionStrings:DefaultConnection is not provided.");
+        }
+
+        connectionString =
+            "Server=localhost,1433;" +
+            "Database=PersonalFinanceDb;" +
+            "User Id=sa;" +
+            $"Password={mssqlPassword};" +
+            "TrustServerCertificate=True;";
+    }
+
+    options.UseSqlServer(
+        connectionString
     );
     if (builder.Environment.IsDevelopment())
     {
@@ -69,7 +104,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>{
 builder.Services.Configure<JwtOptions>(
     builder.Configuration.GetSection("Jwt"));
 
-var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+var jwtKey =
+    builder.Configuration["Jwt:Key"] ??
+    Environment.GetEnvironmentVariable("JWT_KEY");
 
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
 {
@@ -77,7 +114,6 @@ if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
         "JWT Key must be configured and contain at least 32 characters."
     );
 }
-// Cho phép JwtService đọc khóa qua IConfiguration
 builder.Configuration["Jwt:Key"] = jwtKey;
 // =====================================================
 // APPLICATION SERVICES
@@ -180,10 +216,10 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 // SEED DATA
-using (var scope = app.Services.CreateScope())
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    var context = scope.ServiceProvider
-        .GetRequiredService<AppDbContext>();
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
     await DbSeeder.SeedAsync(context);
 }
@@ -231,3 +267,5 @@ app.MapHub<NotificationHub>(
 );
 
 app.Run();
+
+public partial class Program { }

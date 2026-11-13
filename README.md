@@ -52,6 +52,7 @@
 - [🌿 Git Workflow](#-git-workflow)
 - [🧯 Xử lý lỗi thường gặp](#-xử-lý-lỗi-thường-gặp)
 - [🔒 Bảo mật](#-bảo-mật)
+- [🧪 Hands-on Lab ASP.NET Core](#-hands-on-lab-aspnet-core)
 - [👨‍💻 Tác giả](#-tác-giả)
 
 ---
@@ -1223,6 +1224,241 @@ Không bắt buộc cài trực tiếp:
 ✗ Entity Framework CLI
 
 Docker Compose sẽ đảm nhiệm việc tạo và kết nối các service cần thiết cho project.
+---
+
+## 🧪 Hands-on Lab ASP.NET Core
+
+Phần này tóm lược bài thực hành ASP.NET Core .NET 10: xây dựng một Web API nhỏ để quan sát Middleware Pipeline, Dependency Injection và EF Core. Lab dùng project mẫu riêng tên `LabApi`, không thay đổi hay thay thế Personal Finance App trong repository này.
+
+### Mục tiêu và chuẩn bị
+
+Sau phần thực hành chính (khoảng 30–45 phút), bạn sẽ tạo được các endpoint `/ping`, `/di` và `/api/accounts`, đồng thời:
+
+- Quan sát thứ tự Middleware khi xử lý request và response.
+- Phân biệt Transient, Scoped và Singleton.
+- Kết nối EF Core với SQL Server, tạo Migration và truy vấn dữ liệu.
+
+Chuẩn bị .NET 10 SDK, SQL Server 2022, terminal PowerShell và `curl` hoặc Postman. Cài EF Core CLI một lần nếu máy chưa có:
+
+```powershell
+dotnet tool install --global dotnet-ef
+```
+
+Tạo và chạy project mẫu:
+
+```powershell
+dotnet new webapi --use-controllers -n LabApi -f net10.0
+cd LabApi
+dotnet run
+```
+
+Dùng URL/cổng hiển thị trong terminal khi gọi API. Không đưa mật khẩu SQL Server hoặc JWT key thật vào mã nguồn hay Git; dùng biến môi trường hoặc User Secrets.
+
+### Lab 1 – Middleware Pipeline
+
+Trong `Program.cs`, sau `var app = builder.Build();` và trước `app.Run();`, thêm:
+
+```csharp
+app.Use(async (context, next) =>
+{
+    Console.WriteLine("Middleware 1: vao");
+    await next();
+    Console.WriteLine("Middleware 1: ra");
+});
+
+app.Use(async (context, next) =>
+{
+    Console.WriteLine("Middleware 2: vao");
+    await next();
+    Console.WriteLine("Middleware 2: ra");
+});
+
+app.MapGet("/ping", () =>
+{
+    Console.WriteLine("Endpoint");
+    return Results.Ok(new { message = "pong" });
+});
+```
+
+Gọi `GET /ping` (thay `PORT` bằng cổng thực tế):
+
+```powershell
+curl http://localhost:PORT/ping
+```
+
+Kết quả mong đợi: HTTP 200 với JSON `{"message":"pong"}`; log console đi vào theo thứ tự Middleware 1 → Middleware 2 → Endpoint và quay ra theo thứ tự Middleware 2 → Middleware 1. Các lệnh sau `await next()` chạy trên chiều response.
+
+### Lab 2 – Dependency Injection và Service Lifetime
+
+Tạo `Services/IdServices.cs`:
+
+```csharp
+namespace LabApi.Services;
+
+public interface IIdService
+{
+    Guid Id { get; }
+}
+
+public sealed class TransientIdService : IIdService
+{
+    public Guid Id { get; } = Guid.NewGuid();
+}
+
+public sealed class ScopedIdService : IIdService
+{
+    public Guid Id { get; } = Guid.NewGuid();
+}
+
+public sealed class SingletonIdService : IIdService
+{
+    public Guid Id { get; } = Guid.NewGuid();
+}
+```
+
+Trong `Program.cs`, thêm `using LabApi.Services;`, đăng ký trước `builder.Build()` và khai báo endpoint:
+
+```csharp
+builder.Services.AddTransient<TransientIdService>();
+builder.Services.AddScoped<ScopedIdService>();
+builder.Services.AddSingleton<SingletonIdService>();
+
+// Sau builder.Build()
+app.MapGet("/di", (
+    TransientIdService t1, TransientIdService t2,
+    ScopedIdService s1, ScopedIdService s2,
+    SingletonIdService g1, SingletonIdService g2) =>
+    Results.Ok(new
+    {
+        transient1 = t1.Id,
+        transient2 = t2.Id,
+        scoped1 = s1.Id,
+        scoped2 = s2.Id,
+        singleton1 = g1.Id,
+        singleton2 = g2.Id
+    }));
+```
+
+Gọi `GET /di` hai lần và so sánh GUID: Transient khác nhau mỗi lần resolve; Scoped giống nhau trong cùng request nhưng đổi giữa các request; Singleton giữ nguyên trong suốt vòng đời ứng dụng. Không inject dịch vụ Scoped trực tiếp vào Singleton.
+
+### Lab 3 – EF Core và SQL Server
+
+Cài package tương thích với .NET 10:
+
+```powershell
+dotnet add package Microsoft.EntityFrameworkCore.SqlServer --version 10.0.2
+dotnet add package Microsoft.EntityFrameworkCore.Design --version 10.0.2
+```
+
+Tạo `Models/Account.cs`:
+
+```csharp
+namespace LabApi.Models;
+
+public class Account
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public decimal Balance { get; set; }
+}
+```
+
+Tạo `Data/LabDbContext.cs`:
+
+```csharp
+using LabApi.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace LabApi.Data;
+
+public class LabDbContext(DbContextOptions<LabDbContext> options)
+    : DbContext(options)
+{
+    public DbSet<Account> Accounts => Set<Account>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Account>()
+            .Property(account => account.Balance)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<Account>()
+            .Property(account => account.Name)
+            .HasMaxLength(100)
+            .IsRequired();
+    }
+}
+```
+
+Cấu hình `ConnectionStrings:Default` trong `appsettings.Development.json` (chỉ dùng thông tin local, không commit bí mật) hoặc đặt biến môi trường:
+
+```powershell
+$env:ConnectionStrings__Default = "Server=localhost,1433;Database=LabDb;User Id=sa;Password=YOUR_LOCAL_PASSWORD;TrustServerCertificate=True"
+```
+
+Thêm hai `using` ở đầu `Program.cs`; đăng ký DbContext trước `builder.Build()`:
+
+```csharp
+using LabApi.Data;
+using Microsoft.EntityFrameworkCore;
+
+builder.Services.AddDbContext<LabDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("Default")));
+```
+
+Sau đó tạo schema và endpoint đọc dữ liệu:
+
+```powershell
+dotnet ef migrations add InitialCreate
+dotnet ef database update
+```
+
+```csharp
+app.MapGet("/api/accounts", async (LabDbContext db) =>
+{
+    var accounts = await db.Accounts
+        .AsNoTracking()
+        .ToListAsync();
+
+    return Results.Ok(accounts);
+});
+```
+
+Thêm dữ liệu thử bằng SSMS rồi gọi `GET /api/accounts`:
+
+```sql
+INSERT INTO dbo.Accounts (Name, Balance)
+VALUES (N'Tiền mặt', 1500000.00),
+       (N'Tài khoản ngân hàng', 5000000.00);
+```
+
+Xác nhận Migration tạo bảng `Accounts` và `__EFMigrationsHistory`; `Balance` có precision `(18,2)` và endpoint trả về các bản ghi. Nếu API chạy trong Docker Compose, hostname của SQL Server thường là tên service (`db`), không phải `localhost`.
+
+### Lab mở rộng
+
+Các lab sau là nội dung tùy chọn; thực hiện trên project mẫu hoặc môi trường thử nghiệm riêng:
+
+| Lab | Nội dung | Kết quả cần kiểm tra |
+| --- | --- | --- |
+| Controller và Minimal API | Tạo cùng endpoint theo hai cách, so sánh cách tổ chức | Cả hai endpoint trả JSON |
+| JWT Authentication | Phát hành token mẫu và bảo vệ `/me` | Không token/token sai trả 401; token hợp lệ trả 200 |
+| SignalR | Tạo Hub và gửi thông báo tới các client đang kết nối | Hai client cùng nhận thông báo |
+| React gọi Web API | Tạo ứng dụng React bằng Vite và gọi API qua `fetch` | Hiển thị dữ liệu hoặc lỗi từ API |
+| Docker Compose | Chạy API cùng SQL Server, cấu hình health check | Database healthy và API phản hồi |
+| Kiểm thử API | Dùng `WebApplicationFactory` kiểm thử endpoint được bảo vệ | Kiểm thử xác nhận request không token trả 401 |
+| GitHub Actions | Tự động restore, build và test khi push/PR | Workflow hoàn thành thành công |
+
+JWT demo chỉ dùng để học, không phải quy trình đăng nhập production. Ứng dụng thật cần cấu hình issuer/audience, cấp token an toàn, phân quyền và bảo vệ secret. Khi kết nối frontend, chỉ cho phép CORS với origin cần thiết; cân nhắc rủi ro XSS trước khi lưu token ở client.
+
+### Bài tập và checklist
+
+1. Thêm Middleware ghi HTTP method, path và thời gian xử lý request; giải thích vì sao thời gian được dừng sau `await next()`.
+2. Dùng `/di` giải thích sự khác nhau của ba service lifetime trong cùng request và giữa hai request.
+3. Tạo endpoint `/api/accounts/above-limit` trả về Account có `Balance > 1_000_000m`, dùng `AsNoTracking()`.
+
+Hoàn thành phần chính khi chạy được `/ping`, `/di` và `/api/accounts`, truy vấn được dữ liệu SQL Server, đồng thời giải thích được thứ tự Middleware, service lifetime và vai trò của Migration. Nếu gặp lỗi kết nối, Migration hoặc CORS, xem thêm [Xử lý lỗi thường gặp](#-xử-lý-lỗi-thường-gặp).
+
 ---
 ## 👨‍💻 Tác giả
 
